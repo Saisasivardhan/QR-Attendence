@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Registration — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-container">
+        <a href="/" class="back-btn">← Back to Home</a>
+        <div class="auth-header">
+          <div class="auth-icon">👨‍🏫</div>
+          <h1>Teacher Registration</h1>
+          <p>Create your instructor account</p>
+        </div>
+        <form id="teacherRegisterForm" class="auth-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="treg-name">Full Name</label>
+              <input
+                type="text"
+                id="treg-name"
+                placeholder="Dr. Jane Smith"
+                required
+                minlength="2"
+              />
+            </div>
+            <div class="form-group">
+              <label for="treg-email">Institute Email</label>
+              <input
+                type="email"
+                id="treg-email"
+                placeholder="jane@university.edu"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="treg-type">Professor Type</label>
+              <select id="treg-type" required>
+                <option value="">Select Type</option>
+                <option value="Assistant">Assistant Professor</option>
+                <option value="Associate">Associate Professor</option>
+                <option value="Professor">Professor</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="treg-dept">Department</label>
+              <input
+                type="text"
+                id="treg-dept"
+                placeholder="Chemical Engineering"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="treg-subjects"
+              >Subject Codes
+              <span class="form-hint"
+                >(comma separated, e.g. CH401, CH402)</span
+              ></label
+            >
+            <input
+              type="text"
+              id="treg-subjects"
+              placeholder="CH401, CH402, CH501"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="treg-password">Password</label>
+            <input
+              type="password"
+              id="treg-password"
+              placeholder="Minimum 6 characters"
+              minlength="6"
+              required
+              autocomplete="new-password"
+            />
+          </div>
+          <div id="errorMsg" class="form-error" style="display: none"></div>
+          <button
+            type="submit"
+            class="btn btn-accent btn-block btn-lg"
+            id="regBtn"
+          >
+            Create Account
+          </button>
+        </form>
+        <p class="auth-switch">
+          Already have an account? <a href="/teacher-login.html">Login here</a>
+        </p>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      document
+        .getElementById("teacherRegisterForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("regBtn");
+          const errorMsg = document.getElementById("errorMsg");
+          errorMsg.style.display = "none";
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const subjectsRaw = document.getElementById("treg-subjects").value;
+            const subjectCodes = subjectsRaw
+              .split(",")
+              .map((s) => s.trim().toUpperCase())
+              .filter((s) => s);
+
+            if (subjectCodes.length === 0) {
+              throw new Error("Please enter at least one subject code.");
+            }
+
+            const result = await ApiService.registerTeacher({
+              name: document.getElementById("treg-name").value.trim(),
+              email: document.getElementById("treg-email").value.trim(),
+              professorType: document.getElementById("treg-type").value,
+              department: document.getElementById("treg-dept").value.trim(),
+              subjectCodes,
+              password: document.getElementById("treg-password").value,
+            });
+
+            ApiService.setAuth(result.token, result.user);
+            window.location.href = "/teacher-dashboard.html";
+          } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.style.display = "block";
+            btn.disabled = false;
+            btn.textContent = "Create Account";
+          }
+        });
+    </script>
+  </body>
+</html>

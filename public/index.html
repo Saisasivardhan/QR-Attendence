@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Secure QR Code Attendance System — Mark and manage attendance with cryptographically secure, real-time QR codes."
+    />
+    <title>QR Attendance System</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div class="landing-page">
+      <div class="landing-bg">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+        <div class="bg-orb bg-orb-3"></div>
+      </div>
+      <div class="landing-content">
+        <div class="landing-hero">
+          <div class="hero-badge">🔒 Secure & Fast</div>
+          <h1 class="hero-title">
+            QR Attendance<br /><span class="gradient-text">System</span>
+          </h1>
+          <p class="hero-subtitle">
+            Effortless attendance tracking with cryptographically secure,
+            real-time QR codes. Built for modern classrooms.
+          </p>
+        </div>
+        <div class="landing-cards">
+          <div class="role-card" id="studentCard">
+            <div class="role-card-glow"></div>
+            <div class="role-icon">🎓</div>
+            <h2>Student</h2>
+            <p>
+              Scan QR codes to mark attendance, view your records, and manage
+              your profile.
+            </p>
+            <a href="/student-login.html" class="btn btn-primary btn-block"
+              >Student Login</a
+            >
+            <a href="/student-register.html" class="role-register"
+              >Don't have an account? <strong>Register</strong></a
+            >
+          </div>
+          <div class="role-card" id="teacherCard">
+            <div class="role-card-glow"></div>
+            <div class="role-icon">👨‍🏫</div>
+            <h2>Teacher</h2>
+            <p>
+              Generate secure QR sessions, track attendance, and view detailed
+              analytics.
+            </p>
+            <a href="/teacher-login.html" class="btn btn-accent btn-block"
+              >Teacher Login</a
+            >
+            <a href="/teacher-register.html" class="role-register"
+              >Don't have an account? <strong>Register</strong></a
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // If already logged in, redirect to appropriate dashboard
+      document.addEventListener("DOMContentLoaded", () => {
+        if (ApiService.isAuthenticated()) {
+          const user = ApiService.getUser();
+          if (user.role === "student")
+            window.location.href = "/student-dashboard.html";
+          else if (user.role === "teacher")
+            window.location.href = "/teacher-dashboard.html";
+        }
+      });
+    </script>
+  </body>
+</html>

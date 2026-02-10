@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Profile — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/student-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="/student-dashboard.html"
+          ><span class="nav-icon">📷</span> Scan</a
+        >
+        <a class="nav-link" href="/student-attendance.html"
+          ><span class="nav-icon">📊</span> Attendance</a
+        >
+        <a class="nav-link active" href="/student-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>👤 My Profile</h1>
+        <button class="btn btn-outline btn-sm" id="editProfileBtn">
+          ✏️ Edit
+        </button>
+      </div>
+
+      <div class="content-card" id="profileContent">
+        <div class="profile-loading">Loading profile...</div>
+      </div>
+
+      <div id="toastContainer"></div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Toast Helper ───
+      function showToast(message, type) {
+        const existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        const toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.innerHTML =
+          '<div class="toast-content"><span class="toast-icon">' +
+          (type === "success" ? "✓" : "✕") +
+          '</span><span class="toast-message">' +
+          message +
+          "</span></div>";
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add("show"));
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // ─── Profile State ───
+      let isEditing = false;
+      let profileData = null;
+
+      const editBtn = document.getElementById("editProfileBtn");
+      const content = document.getElementById("profileContent");
+
+      // ─── Load Profile ───
+      async function loadProfile() {
+        try {
+          const result = await ApiService.getStudentProfile();
+          profileData = result.profile;
+          renderProfileView();
+        } catch (error) {
+          content.innerHTML =
+            '<div class="empty-state"><p class="error-text">' +
+            error.message +
+            "</p></div>";
+        }
+      }
+
+      // ─── Render View Mode ───
+      function renderProfileView() {
+        const p = profileData;
+        content.innerHTML =
+          '<div class="profile-view fade-in">' +
+          '<div class="profile-avatar">' +
+          (p.name ? p.name.charAt(0).toUpperCase() : "S") +
+          "</div>" +
+          '<div class="profile-fields">' +
+          '<div class="profile-field"><span class="field-label">Name</span><span class="field-value">' +
+          p.name +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Roll Number</span><span class="field-value"><span class="badge badge-blue">' +
+          p.rollNumber +
+          "</span></span></div>" +
+          '<div class="profile-field"><span class="field-label">Email</span><span class="field-value">' +
+          p.email +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Department</span><span class="field-value">' +
+          p.department +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Graduation</span><span class="field-value"><span class="badge badge-purple">' +
+          p.graduation +
+          "</span></span></div>" +
+          '<div class="profile-field"><span class="field-label">Year</span><span class="field-value">' +
+          p.year +
+          "</span></div>" +
+          "</div>" +
+          "</div>";
+      }
+
+      // ─── Render Edit Mode ───
+      function renderProfileEdit() {
+        const p = profileData;
+        content.innerHTML =
+          '<form id="editForm" class="profile-edit fade-in">' +
+          '<div class="form-group">' +
+          "<label>Name</label>" +
+          '<input type="text" id="edit-name" value="' +
+          (p.name || "") +
+          '" required minlength="2">' +
+          "</div>" +
+          '<div class="form-group">' +
+          "<label>Email</label>" +
+          '<input type="email" id="edit-email" value="' +
+          (p.email || "") +
+          '" required>' +
+          "</div>" +
+          '<div class="form-group">' +
+          "<label>Year of Studying</label>" +
+          '<input type="number" id="edit-year" value="' +
+          (p.year || 1) +
+          '" min="1" max="6" required>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label>Roll Number <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' +
+          (p.rollNumber || "") +
+          '" disabled>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label>Department <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' +
+          (p.department || "") +
+          '" disabled>' +
+          "</div>" +
+          '<button type="submit" class="btn btn-primary btn-lg" id="saveBtn">Save Changes</button>' +
+          "</form>";
+
+        document
+          .getElementById("editForm")
+          .addEventListener("submit", handleSave);
+      }
+
+      // ─── Save Profile ───
+      async function handleSave(e) {
+        e.preventDefault();
+        const saveBtn = document.getElementById("saveBtn");
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          const data = {
+            name: document.getElementById("edit-name").value.trim(),
+            email: document.getElementById("edit-email").value.trim(),
+            year: parseInt(document.getElementById("edit-year").value),
+          };
+
+          const result = await ApiService.updateStudentProfile(data);
+          profileData = result.profile;
+
+          // Update local storage
+          const currentUser = ApiService.getUser();
+          ApiService.setAuth(ApiService.getToken(), {
+            ...currentUser,
+            ...data,
+          });
+
+          isEditing = false;
+          editBtn.textContent = "✏️ Edit";
+          renderProfileView();
+          showToast("Profile updated successfully!", "success");
+        } catch (error) {
+          showToast(error.message, "error");
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save Changes";
+        }
+      }
+
+      // ─── Toggle Edit ───
+      editBtn.addEventListener("click", () => {
+        isEditing = !isEditing;
+        if (isEditing) {
+          editBtn.textContent = "✕ Cancel";
+          renderProfileEdit();
+        } else {
+          editBtn.textContent = "✏️ Edit";
+          renderProfileView();
+        }
+      });
+
+      // ─── Init ───
+      loadProfile();
+    </script>
+  </body>
+</html>

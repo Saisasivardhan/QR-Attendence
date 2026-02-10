@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mark Attendance — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/student-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link active" href="/student-dashboard.html"
+          ><span class="nav-icon">📷</span> Scan</a
+        >
+        <a class="nav-link" href="/student-attendance.html"
+          ><span class="nav-icon">📊</span> Attendance</a
+        >
+        <a class="nav-link" href="/student-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>📷 Mark Attendance</h1>
+        <p>Point your camera at the QR code displayed by your teacher</p>
+      </div>
+
+      <div class="scanner-container">
+        <div class="scanner-viewport" id="scannerViewport">
+          <video id="scannerVideo" autoplay muted playsinline></video>
+          <canvas id="scannerCanvas" class="scanner-canvas"></canvas>
+          <div class="scanner-overlay">
+            <div class="scanner-frame">
+              <div class="corner tl"></div>
+              <div class="corner tr"></div>
+              <div class="corner bl"></div>
+              <div class="corner br"></div>
+            </div>
+          </div>
+          <div id="scannerStatus" class="scanner-status">
+            <span class="pulse-dot"></span> Click "Start Scanning" to begin
+          </div>
+        </div>
+
+        <div class="scanner-controls">
+          <button class="btn btn-primary btn-lg" id="startScanBtn">
+            <span class="btn-icon">📷</span> Start Scanning
+          </button>
+          <button
+            class="btn btn-outline btn-lg"
+            id="stopScanBtn"
+            style="display: none"
+          >
+            <span class="btn-icon">⏹</span> Stop Scanner
+          </button>
+        </div>
+
+        <div id="scanResult" class="scan-result" style="display: none"></div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/scanner.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Scanner Logic ───
+      let currentScanner = null;
+      let scanCooldown = false;
+
+      document
+        .getElementById("startScanBtn")
+        .addEventListener("click", startScanning);
+      document
+        .getElementById("stopScanBtn")
+        .addEventListener("click", stopScanning);
+
+      async function startScanning() {
+        const video = document.getElementById("scannerVideo");
+        const canvas = document.getElementById("scannerCanvas");
+        const status = document.getElementById("scannerStatus");
+
+        document.getElementById("startScanBtn").style.display = "none";
+        document.getElementById("stopScanBtn").style.display = "inline-flex";
+        document.getElementById("scanResult").style.display = "none";
+
+        currentScanner = new QRScanner(video, canvas, handleQRScan);
+
+        try {
+          await currentScanner.start();
+          status.innerHTML =
+            '<span class="pulse-dot active"></span> Scanning for QR codes...';
+        } catch (error) {
+          status.innerHTML =
+            '<span class="pulse-dot error"></span> ' + error.message;
+        }
+      }
+
+      function stopScanning() {
+        if (currentScanner) {
+          currentScanner.stop();
+          currentScanner = null;
+        }
+        document.getElementById("startScanBtn").style.display = "inline-flex";
+        document.getElementById("stopScanBtn").style.display = "none";
+        document.getElementById("scannerStatus").innerHTML =
+          '<span class="pulse-dot"></span> Scanner stopped';
+      }
+
+      async function handleQRScan(data) {
+        if (scanCooldown) return;
+        scanCooldown = true;
+
+        const status = document.getElementById("scannerStatus");
+        status.innerHTML =
+          '<span class="pulse-dot success"></span> QR detected! Verifying...';
+
+        try {
+          const result = await ApiService.scanAttendance(data);
+
+          document.getElementById("scanResult").style.display = "block";
+          document.getElementById("scanResult").innerHTML =
+            '<div class="result-card result-success">' +
+            '<div class="result-icon">✓</div>' +
+            "<h3>Attendance Marked!</h3>" +
+            "<p>" +
+            result.message +
+            "</p>" +
+            '<div class="result-details">' +
+            "<span>Subject: <strong>" +
+            result.attendance.subjectCode +
+            "</strong></span>" +
+            "<span>Date: <strong>" +
+            result.attendance.date +
+            "</strong></span>" +
+            "</div>" +
+            "</div>";
+
+          // Stop scanning after successful mark
+          stopScanning();
+        } catch (error) {
+          document.getElementById("scanResult").style.display = "block";
+          document.getElementById("scanResult").innerHTML =
+            '<div class="result-card result-error">' +
+            '<div class="result-icon">✕</div>' +
+            "<h3>Scan Failed</h3>" +
+            "<p>" +
+            error.message +
+            "</p>" +
+            "</div>";
+        }
+
+        // Cooldown to prevent rapid re-scans
+        setTimeout(() => {
+          scanCooldown = false;
+        }, 3000);
+      }
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        if (currentScanner) currentScanner.stop();
+      });
+    </script>
+  </body>
+</html>

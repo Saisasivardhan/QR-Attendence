@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendance Session — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/teacher-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link active" href="/teacher-dashboard.html"
+          ><span class="nav-icon">📡</span> Session</a
+        >
+        <a class="nav-link" href="/teacher-analytics.html"
+          ><span class="nav-icon">📊</span> Analytics</a
+        >
+        <a class="nav-link" href="/teacher-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>📡 Attendance Session</h1>
+        <p>Select a subject and start taking attendance via secure QR codes</p>
+      </div>
+
+      <!-- Session Controls -->
+      <div class="content-card">
+        <div class="session-controls">
+          <div class="form-group">
+            <label for="session-subject">Subject Code</label>
+            <select id="session-subject" required>
+              <option value="">Select Subject</option>
+            </select>
+          </div>
+          <div class="session-actions">
+            <button class="btn btn-primary btn-lg" id="startSessionBtn">
+              <span class="btn-icon">▶</span> Start Attendance
+            </button>
+            <button
+              class="btn btn-danger btn-lg"
+              id="stopSessionBtn"
+              style="display: none"
+            >
+              <span class="btn-icon">⏹</span> Stop Session
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code Display (hidden until session starts) -->
+      <div id="qrDisplay" class="qr-display-container" style="display: none">
+        <div class="qr-card">
+          <div class="qr-header">
+            <div class="qr-live-badge">
+              <span class="pulse-dot active"></span> LIVE
+            </div>
+            <h2 id="qrSubjectLabel">—</h2>
+          </div>
+          <div class="qr-image-wrapper">
+            <img id="qrImage" class="qr-image" alt="QR Code for attendance" />
+          </div>
+          <p class="qr-hint">
+            QR refreshes every 2 seconds • Ask students to scan
+          </p>
+          <div class="qr-timer">
+            Session active: <span id="sessionDuration">0:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "teacher"
+      ) {
+        window.location.href = "/teacher-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        stopSession();
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Populate Subject Dropdown ───
+      const user = ApiService.getUser();
+      const subjectSelect = document.getElementById("session-subject");
+      if (user && user.subjectCodes) {
+        user.subjectCodes.forEach((code) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = code;
+          subjectSelect.appendChild(opt);
+        });
+      }
+
+      // ─── Session State ───
+      let qrRefreshInterval = null;
+      let sessionTimerInterval = null;
+      let sessionStartTime = null;
+
+      // ─── Toast Helper ───
+      function showToast(message, type) {
+        const existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        const toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.innerHTML =
+          '<div class="toast-content"><span class="toast-icon">' +
+          (type === "success" ? "✓" : "✕") +
+          '</span><span class="toast-message">' +
+          message +
+          "</span></div>";
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add("show"));
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // ─── Start Session ───
+      document
+        .getElementById("startSessionBtn")
+        .addEventListener("click", async () => {
+          const subjectCode = subjectSelect.value;
+          if (!subjectCode) {
+            showToast("Please select a subject code.", "error");
+            return;
+          }
+
+          const btn = document.getElementById("startSessionBtn");
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            await ApiService.startAttendance(subjectCode);
+            showToast(
+              "Attendance session started for " + subjectCode + "!",
+              "success",
+            );
+
+            // Show QR display
+            document.getElementById("qrDisplay").style.display = "block";
+            document.getElementById("qrSubjectLabel").textContent = subjectCode;
+            document.getElementById("startSessionBtn").style.display = "none";
+            document.getElementById("stopSessionBtn").style.display =
+              "inline-flex";
+            subjectSelect.disabled = true;
+
+            // Start QR refresh (every 2 seconds)
+            refreshQR();
+            qrRefreshInterval = setInterval(refreshQR, 2000);
+
+            // Start session timer
+            sessionStartTime = Date.now();
+            sessionTimerInterval = setInterval(updateTimer, 1000);
+          } catch (error) {
+            showToast(error.message, "error");
+            btn.disabled = false;
+            btn.innerHTML = '<span class="btn-icon">▶</span> Start Attendance';
+          }
+        });
+
+      // ─── Stop Session ───
+      document
+        .getElementById("stopSessionBtn")
+        .addEventListener("click", stopSession);
+
+      async function stopSession() {
+        try {
+          const result = await ApiService.stopAttendance();
+          const count = result.session ? result.session.attendanceCount : 0;
+          showToast(
+            "Session stopped. " + count + " students marked attendance.",
+            "success",
+          );
+        } catch (e) {
+          // Session might already be stopped
+        }
+
+        // Clear intervals
+        if (qrRefreshInterval) {
+          clearInterval(qrRefreshInterval);
+          qrRefreshInterval = null;
+        }
+        if (sessionTimerInterval) {
+          clearInterval(sessionTimerInterval);
+          sessionTimerInterval = null;
+        }
+
+        // Reset UI
+        document.getElementById("qrDisplay").style.display = "none";
+        document.getElementById("startSessionBtn").style.display =
+          "inline-flex";
+        document.getElementById("startSessionBtn").disabled = false;
+        document.getElementById("startSessionBtn").innerHTML =
+          '<span class="btn-icon">▶</span> Start Attendance';
+        document.getElementById("stopSessionBtn").style.display = "none";
+        subjectSelect.disabled = false;
+      }
+
+      // ─── Refresh QR Image ───
+      async function refreshQR() {
+        try {
+          const result = await ApiService.getCurrentQR();
+          if (result.success) {
+            const img = document.getElementById("qrImage");
+            img.src = result.qr.image;
+            img.classList.add("qr-pulse");
+            setTimeout(() => img.classList.remove("qr-pulse"), 300);
+          }
+        } catch (error) {
+          if (error.message.includes("No active")) {
+            stopSession();
+          }
+        }
+      }
+
+      // ─── Update Timer ───
+      function updateTimer() {
+        if (!sessionStartTime) return;
+        const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const el = document.getElementById("sessionDuration");
+        if (el) el.textContent = mins + ":" + secs.toString().padStart(2, "0");
+      }
+
+      // ─── Check for Existing Active Session on Load ───
+      (async function checkActiveSession() {
+        try {
+          const result = await ApiService.getCurrentQR();
+          if (result.success) {
+            // Active session exists — show QR
+            document.getElementById("qrDisplay").style.display = "block";
+            document.getElementById("qrSubjectLabel").textContent =
+              result.qr.subjectCode;
+            document.getElementById("qrImage").src = result.qr.image;
+            document.getElementById("startSessionBtn").style.display = "none";
+            document.getElementById("stopSessionBtn").style.display =
+              "inline-flex";
+            subjectSelect.disabled = true;
+            subjectSelect.value = result.qr.subjectCode;
+
+            // Start refresh
+            qrRefreshInterval = setInterval(refreshQR, 2000);
+            sessionStartTime = Date.now();
+            sessionTimerInterval = setInterval(updateTimer, 1000);
+          }
+        } catch (e) {
+          // No active session — normal state
+        }
+      })();
+
+      // ─── Cleanup on page unload ───
+      window.addEventListener("beforeunload", () => {
+        if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+        if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      });
+    </script>
+  </body>
+</html>

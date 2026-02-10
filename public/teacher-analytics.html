@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attendance Analytics — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/teacher-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="/teacher-dashboard.html"
+          ><span class="nav-icon">📡</span> Session</a
+        >
+        <a class="nav-link active" href="/teacher-analytics.html"
+          ><span class="nav-icon">📊</span> Analytics</a
+        >
+        <a class="nav-link" href="/teacher-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>📊 Attendance Analytics</h1>
+        <p>View detailed attendance records for your subjects</p>
+      </div>
+
+      <div class="content-card">
+        <form id="analyticsForm" class="inline-form">
+          <div class="form-group">
+            <label for="analytics-subject">Subject Code</label>
+            <select id="analytics-subject" required>
+              <option value="">Select Subject</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-accent" id="viewAnalyticsBtn">
+            View Report
+          </button>
+        </form>
+
+        <div id="analyticsResult"></div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "teacher"
+      ) {
+        window.location.href = "/teacher-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Populate Subject Dropdown ───
+      const user = ApiService.getUser();
+      const subjectSelect = document.getElementById("analytics-subject");
+      if (user && user.subjectCodes) {
+        user.subjectCodes.forEach((code) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = code;
+          subjectSelect.appendChild(opt);
+        });
+      }
+
+      // ─── Analytics Form ───
+      document
+        .getElementById("analyticsForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const subjectCode = subjectSelect.value;
+          if (!subjectCode) return;
+
+          const btn = document.getElementById("viewAnalyticsBtn");
+          const resultDiv = document.getElementById("analyticsResult");
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const result = await ApiService.getSubjectSummary(subjectCode);
+
+            if (!result.students || result.students.length === 0) {
+              resultDiv.innerHTML =
+                '<div class="empty-state fade-in">' +
+                '<div class="empty-icon">📋</div>' +
+                "<h3>No Data Yet</h3>" +
+                "<p>No students found for " +
+                subjectCode +
+                ". Students in your department will appear here once attendance sessions are conducted.</p>" +
+                "</div>";
+            } else {
+              // Build summary stats
+              let html =
+                '<div class="analytics-summary fade-in">' +
+                '<div class="summary-stat">' +
+                '<span class="summary-num">' +
+                result.totalClasses +
+                "</span>" +
+                '<span class="summary-label">Total Classes</span>' +
+                "</div>" +
+                '<div class="summary-stat">' +
+                '<span class="summary-num">' +
+                result.students.length +
+                "</span>" +
+                '<span class="summary-label">Total Students</span>' +
+                "</div>" +
+                "</div>";
+
+              // Build table
+              html +=
+                '<div class="table-container fade-in"><table class="data-table">' +
+                "<thead><tr>" +
+                "<th>Student Name</th>" +
+                "<th>Roll Number</th>" +
+                "<th>Total Classes</th>" +
+                "<th>Attended</th>" +
+                "<th>Attendance %</th>" +
+                "</tr></thead><tbody>";
+
+              result.students.forEach(function (s, i) {
+                const pColor =
+                  s.percentage >= 75
+                    ? "stat-good"
+                    : s.percentage >= 50
+                      ? "stat-warn"
+                      : "stat-bad";
+                html +=
+                  '<tr class="fade-in" style="animation-delay: ' +
+                  i * 30 +
+                  'ms">' +
+                  "<td>" +
+                  s.name +
+                  "</td>" +
+                  '<td><span class="badge badge-blue">' +
+                  s.rollNumber +
+                  "</span></td>" +
+                  "<td>" +
+                  s.totalClasses +
+                  "</td>" +
+                  "<td>" +
+                  s.classesAttended +
+                  "</td>" +
+                  '<td><span class="stat-badge ' +
+                  pColor +
+                  '">' +
+                  s.percentage +
+                  "%</span></td>" +
+                  "</tr>";
+              });
+
+              html += "</tbody></table></div>";
+              resultDiv.innerHTML = html;
+            }
+          } catch (error) {
+            resultDiv.innerHTML =
+              '<div class="empty-state"><p class="error-text">' +
+              error.message +
+              "</p></div>";
+          }
+
+          btn.disabled = false;
+          btn.textContent = "View Report";
+        });
+    </script>
+  </body>
+</html>

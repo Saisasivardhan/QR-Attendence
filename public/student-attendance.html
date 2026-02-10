@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Attendance — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/student-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="/student-dashboard.html"
+          ><span class="nav-icon">📷</span> Scan</a
+        >
+        <a class="nav-link active" href="/student-attendance.html"
+          ><span class="nav-icon">📊</span> Attendance</a
+        >
+        <a class="nav-link" href="/student-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>📊 My Attendance</h1>
+        <p>Enter a subject code to view your attendance records</p>
+      </div>
+
+      <div class="content-card">
+        <form id="attendanceQueryForm" class="inline-form">
+          <div class="form-group">
+            <label for="att-subject">Subject Code</label>
+            <input
+              type="text"
+              id="att-subject"
+              placeholder="e.g., CH401"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary" id="viewAttBtn">
+            View Attendance
+          </button>
+        </form>
+
+        <div id="attendanceResult"></div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Attendance Query ───
+      document
+        .getElementById("attendanceQueryForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("viewAttBtn");
+          const resultDiv = document.getElementById("attendanceResult");
+          const subjectCode = document
+            .getElementById("att-subject")
+            .value.trim()
+            .toUpperCase();
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const result = await ApiService.getStudentAttendance(subjectCode);
+            const att = result.attendance;
+
+            // Calculate SVG circle progress
+            const percentage = att.percentage;
+            const circumference = 2 * Math.PI * 54;
+            const offset = circumference - (percentage / 100) * circumference;
+            const color =
+              percentage >= 75
+                ? "#10b981"
+                : percentage >= 50
+                  ? "#f59e0b"
+                  : "#ef4444";
+
+            resultDiv.innerHTML =
+              '<div class="attendance-stats fade-in">' +
+              '<div class="stat-circle-container">' +
+              '<svg class="stat-circle" viewBox="0 0 120 120">' +
+              '<circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>' +
+              '<circle cx="60" cy="60" r="54" fill="none" stroke="' +
+              color +
+              '" stroke-width="8" ' +
+              'stroke-dasharray="' +
+              circumference +
+              '" stroke-dashoffset="' +
+              offset +
+              '" ' +
+              'stroke-linecap="round" transform="rotate(-90 60 60)"/>' +
+              "</svg>" +
+              '<div class="stat-circle-value">' +
+              '<span class="stat-percent" style="color:' +
+              color +
+              '">' +
+              percentage +
+              "%</span>" +
+              '<span class="stat-label">Attendance</span>' +
+              "</div>" +
+              "</div>" +
+              '<div class="stat-info">' +
+              "<h3>" +
+              att.subjectCode +
+              "</h3>" +
+              '<div class="stat-row">' +
+              '<div class="stat-item">' +
+              '<span class="stat-num">' +
+              att.totalClasses +
+              "</span>" +
+              '<span class="stat-desc">Total Classes</span>' +
+              "</div>" +
+              '<div class="stat-item">' +
+              '<span class="stat-num">' +
+              att.classesAttended +
+              "</span>" +
+              '<span class="stat-desc">Attended</span>' +
+              "</div>" +
+              "</div>" +
+              "</div>" +
+              "</div>";
+          } catch (error) {
+            resultDiv.innerHTML =
+              '<div class="empty-state"><p class="error-text">' +
+              error.message +
+              "</p></div>";
+          }
+
+          btn.disabled = false;
+          btn.textContent = "View Attendance";
+        });
+    </script>
+  </body>
+</html>

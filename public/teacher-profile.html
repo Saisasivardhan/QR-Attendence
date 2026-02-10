@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teacher Profile — QR Attendance</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/teacher-dashboard.html'"
+      >
+        <span class="nav-logo">◉</span> QR Attend
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="/teacher-dashboard.html"
+          ><span class="nav-icon">📡</span> Session</a
+        >
+        <a class="nav-link" href="/teacher-analytics.html"
+          ><span class="nav-icon">📊</span> Analytics</a
+        >
+        <a class="nav-link active" href="/teacher-profile.html"
+          ><span class="nav-icon">👤</span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon">⏻</span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        ☰
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>👤 My Profile</h1>
+        <button class="btn btn-outline btn-sm" id="editProfileBtn">
+          ✏️ Edit
+        </button>
+      </div>
+
+      <div class="content-card" id="profileContent">
+        <div class="profile-loading">Loading profile...</div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "teacher"
+      ) {
+        window.location.href = "/teacher-login.html";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Toast Helper ───
+      function showToast(message, type) {
+        const existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        const toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.innerHTML =
+          '<div class="toast-content"><span class="toast-icon">' +
+          (type === "success" ? "✓" : "✕") +
+          '</span><span class="toast-message">' +
+          message +
+          "</span></div>";
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add("show"));
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // ─── Profile State ───
+      let isEditing = false;
+      let profileData = null;
+
+      const editBtn = document.getElementById("editProfileBtn");
+      const content = document.getElementById("profileContent");
+
+      // ─── Load Profile ───
+      async function loadProfile() {
+        try {
+          const result = await ApiService.getTeacherProfile();
+          profileData = result.profile;
+          renderProfileView();
+        } catch (error) {
+          content.innerHTML =
+            '<div class="empty-state"><p class="error-text">' +
+            error.message +
+            "</p></div>";
+        }
+      }
+
+      // ─── Render View Mode ───
+      function renderProfileView() {
+        const p = profileData;
+
+        // Build subject code badges
+        let subjectBadges = "";
+        if (p.subjectCodes && p.subjectCodes.length) {
+          p.subjectCodes.forEach(function (code) {
+            subjectBadges +=
+              '<span class="badge badge-green">' + code + "</span> ";
+          });
+        }
+
+        content.innerHTML =
+          '<div class="profile-view fade-in">' +
+          '<div class="profile-avatar teacher-avatar">' +
+          (p.name ? p.name.charAt(0).toUpperCase() : "T") +
+          "</div>" +
+          '<div class="profile-fields">' +
+          '<div class="profile-field"><span class="field-label">Name</span><span class="field-value">' +
+          p.name +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Institute Email</span><span class="field-value">' +
+          p.email +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Professor Type</span><span class="field-value"><span class="badge badge-purple">' +
+          p.professorType +
+          "</span></span></div>" +
+          '<div class="profile-field"><span class="field-label">Department</span><span class="field-value">' +
+          p.department +
+          "</span></div>" +
+          '<div class="profile-field"><span class="field-label">Subject Codes</span><span class="field-value">' +
+          subjectBadges +
+          "</span></div>" +
+          "</div>" +
+          "</div>";
+      }
+
+      // ─── Render Edit Mode ───
+      function renderProfileEdit() {
+        const p = profileData;
+        const user = ApiService.getUser();
+
+        // Build subject badges for disabled display
+        let subjectBadges = "";
+        const codes = p.subjectCodes || user.subjectCodes || [];
+        codes.forEach(function (code) {
+          subjectBadges +=
+            '<span class="badge badge-green">' + code + "</span> ";
+        });
+
+        content.innerHTML =
+          '<form id="editForm" class="profile-edit fade-in">' +
+          '<div class="form-group">' +
+          "<label>Name</label>" +
+          '<input type="text" id="tedit-name" value="' +
+          (p.name || "") +
+          '" required minlength="2">' +
+          "</div>" +
+          '<div class="form-group">' +
+          "<label>Professor Type</label>" +
+          '<select id="tedit-type" required>' +
+          '<option value="Assistant"' +
+          (p.professorType === "Assistant" ? " selected" : "") +
+          ">Assistant Professor</option>" +
+          '<option value="Associate"' +
+          (p.professorType === "Associate" ? " selected" : "") +
+          ">Associate Professor</option>" +
+          '<option value="Professor"' +
+          (p.professorType === "Professor" ? " selected" : "") +
+          ">Professor</option>" +
+          "</select>" +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label>Institute Email <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' +
+          (p.email || "") +
+          '" disabled>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label>Department <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' +
+          (p.department || "") +
+          '" disabled>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label>Subject Codes <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<div class="disabled-badges">' +
+          subjectBadges +
+          "</div>" +
+          "</div>" +
+          '<button type="submit" class="btn btn-accent btn-lg" id="saveBtn">Save Changes</button>' +
+          "</form>";
+
+        document
+          .getElementById("editForm")
+          .addEventListener("submit", handleSave);
+      }
+
+      // ─── Save Profile ───
+      async function handleSave(e) {
+        e.preventDefault();
+        const saveBtn = document.getElementById("saveBtn");
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          const data = {
+            name: document.getElementById("tedit-name").value.trim(),
+            professorType: document.getElementById("tedit-type").value,
+          };
+
+          const result = await ApiService.updateTeacherProfile(data);
+          profileData = result.profile;
+
+          // Update local storage
+          const currentUser = ApiService.getUser();
+          ApiService.setAuth(ApiService.getToken(), {
+            ...currentUser,
+            ...data,
+          });
+
+          isEditing = false;
+          editBtn.textContent = "✏️ Edit";
+          renderProfileView();
+          showToast("Profile updated successfully!", "success");
+        } catch (error) {
+          showToast(error.message, "error");
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save Changes";
+        }
+      }
+
+      // ─── Toggle Edit ───
+      editBtn.addEventListener("click", () => {
+        isEditing = !isEditing;
+        if (isEditing) {
+          editBtn.textContent = "✕ Cancel";
+          renderProfileEdit();
+        } else {
+          editBtn.textContent = "✏️ Edit";
+          renderProfileView();
+        }
+      });
+
+      // ─── Init ───
+      loadProfile();
+    </script>
+  </body>
+</html>
