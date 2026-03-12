@@ -1,0 +1,2013 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
+    <script src="/js/xlsx.full.min.js"></script>
+    <style>
+      /* ═══ ADMIN SIDEBAR LAYOUT ═══ */
+      body.admin-page { overflow: hidden; }
+
+      .admin-layout { display: flex; height: 100vh; overflow: hidden; }
+
+      /* ─── Sidebar ─── */
+      .admin-sidebar {
+        width: 260px; min-width: 260px; height: 100vh; display: flex; flex-direction: column;
+        background: rgba(15, 20, 35, 0.98); border-right: 1px solid var(--border-color);
+        backdrop-filter: blur(24px); z-index: 200; transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+      }
+      .sidebar-brand {
+        display: flex; align-items: center; gap: 10px; padding: 22px 24px; font-size: 1.15rem;
+        font-weight: 700; color: var(--text-primary); border-bottom: 1px solid var(--border-color); cursor: pointer;
+      }
+      .sidebar-brand-icon {
+        width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        background: var(--gradient-primary); color: #fff; font-size: 1.2rem;
+      }
+      .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+      .sidebar-label {
+        font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px;
+        color: var(--text-muted); padding: 16px 12px 6px; margin-top: 4px;
+      }
+      .admin-tab {
+        display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px;
+        cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--text-secondary);
+        transition: all 0.2s; border: none; background: none; font-family: inherit; width: 100%; text-align: left;
+      }
+      .admin-tab i { font-size: 1.2rem; width: 22px; text-align: center; }
+      .admin-tab:hover { color: var(--text-primary); background: var(--bg-glass-hover); }
+      .admin-tab.active {
+        color: #fff; background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.15));
+        border: 1px solid rgba(99,102,241,0.3); box-shadow: 0 0 20px rgba(99,102,241,0.08);
+      }
+      .admin-tab.active i { color: var(--accent-primary); }
+      .sidebar-bottom {
+        padding: 16px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px;
+      }
+      .sidebar-logout {
+        display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px;
+        cursor: pointer; font-size: 0.88rem; font-weight: 500; color: var(--accent-red); background: none;
+        border: none; font-family: inherit; width: 100%; text-align: left; transition: all 0.2s;
+      }
+      .sidebar-logout:hover { background: rgba(239,68,68,0.1); }
+      .sidebar-logout i { font-size: 1.2rem; width: 22px; text-align: center; }
+
+      /* ─── Main Content Area ─── */
+      .admin-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+      .admin-topbar {
+        display: flex; align-items: center; justify-content: space-between; padding: 0 28px;
+        height: 64px; min-height: 64px; border-bottom: 1px solid var(--border-color);
+        background: rgba(10,14,26,0.7); backdrop-filter: blur(16px);
+      }
+      .topbar-title { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+      .topbar-title i { color: var(--accent-primary); font-size: 1.3rem; }
+      .topbar-right { display: flex; align-items: center; gap: 12px; }
+      .topbar-badge {
+        display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600; background: rgba(99,102,241,0.12); color: var(--accent-primary);
+        border: 1px solid rgba(99,102,241,0.2);
+      }
+      .mobile-toggle {
+        display: none; background: none; border: 1px solid var(--border-color); border-radius: 10px;
+        color: var(--text-secondary); font-size: 1.4rem; padding: 6px 10px; cursor: pointer;
+      }
+
+      .admin-body { flex: 1; padding: 28px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+
+      /* ─── Panels ─── */
+      .admin-panel { display: none; animation: panelFadeIn 0.35s ease; }
+      .admin-panel.active { display: block; }
+      @keyframes panelFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* ─── Section header ─── */
+      .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+      .section-header h2 { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
+      .section-header h2 i { color: var(--accent-primary); }
+
+      /* ─── Stats Grid ─── */
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-bottom: 28px; }
+      .stat-card {
+        background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px;
+        padding: 22px; transition: all 0.25s; position: relative; overflow: hidden;
+      }
+      .stat-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 14px 14px 0 0;
+        background: var(--gradient-primary); opacity: 0; transition: opacity 0.3s;
+      }
+      .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-glow); }
+      .stat-card:hover::before { opacity: 1; }
+      .stat-card .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 14px; }
+      .stat-card .stat-icon.blue { background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+      .stat-card .stat-icon.green { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+      .stat-card .stat-icon.amber { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+      .stat-card .stat-icon.red { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+      .stat-card .stat-icon.cyan { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+      .stat-card .stat-value { font-size: 2rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px; }
+      .stat-card .stat-label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+
+      /* ─── Filter bar ─── */
+      .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 24px; }
+      .search-wrapper { position: relative; flex: 1 1 320px; min-width: 240px; max-width: 520px; }
+      .filter-select { flex: 0 0 180px; min-width: 160px; max-width: 180px; }
+      .search-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.1rem; }
+      .filter-bar input, .filter-bar select {
+        background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px;
+        padding: 10px 16px; color: var(--text-primary); font-family: inherit; font-size: 0.88rem;
+        outline: none; transition: all 0.25s cubic-bezier(0.16,1,0.3,1); width: 100%;
+      }
+      .filter-bar input { padding-left: 44px; }
+      .filter-bar select { background-color: var(--bg-secondary); cursor: pointer; min-width: 160px; }
+      .filter-bar input:focus, .filter-bar select:focus {
+        border-color: var(--border-focus);
+        background: var(--bg-secondary);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        transform: translateY(-1px);
+      }
+
+      /* ─── Data Table ─── */
+      .data-table-wrapper { overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; }
+      .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
+      .data-table th { padding: 12px 12px; text-align: left; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.5px; vertical-align: top; }
+      .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); vertical-align: top; }
+      .data-table tr:last-child td { border-bottom: none; }
+      .data-table tr { transition: background 0.15s; }
+      .data-table tr:hover td { background: var(--bg-glass-hover); }
+      .data-table th, .data-table td { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+      .table-cell-tight { font-size: 0.78rem; }
+      .table-cell-actions { width: 160px; }
+      .table-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+      .table-actions .btn-xs { flex: 1 1 auto; min-width: 56px; justify-content: center; display: inline-flex; align-items: center; gap: 4px; }
+
+      /* ─── Pagination ─── */
+      .table-footer {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+        padding: 14px 16px; border-top: 1px solid var(--border-color); background: rgba(255,255,255,0.02);
+      }
+      .table-meta { color: var(--text-secondary); font-size: 0.8rem; }
+      .pagination { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .pagination-btn {
+        min-width: 38px; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-color);
+        background: var(--bg-glass); color: var(--text-primary); font-family: inherit; font-size: 0.82rem;
+        font-weight: 600; cursor: pointer; transition: all 0.2s;
+      }
+      .pagination-btn:hover:not(:disabled) { border-color: var(--border-focus); background: var(--bg-glass-hover); }
+      .pagination-btn.active { background: var(--gradient-primary); border-color: transparent; color: #fff; }
+      .pagination-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+      .pagination-ellipsis { padding: 0 6px; color: var(--text-muted); font-size: 0.9rem; line-height: 38px; user-select: none; }
+
+      /* ─── Badges ─── */
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.73rem; font-weight: 600; letter-spacing: 0.3px; }
+      .badge-green { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+      .badge-amber { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+      .badge-red { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+      .badge-blue { background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+      .badge-cyan { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+
+      /* ─── Action Buttons ─── */
+      .btn-xs { padding: 5px 12px; font-size: 0.75rem; border-radius: 7px; border: none; cursor: pointer; font-weight: 500; font-family: inherit; transition: all 0.2s; }
+      .btn-xs:hover { transform: translateY(-1px); filter: brightness(1.15); }
+      .btn-view { background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+      .btn-regen { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+      .btn-reset { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+      .btn-delete { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+      .btn-edit { background: rgba(56,189,248,0.15); color: var(--accent-cyan, #38bdf8); }
+
+      /* ─── Modal ─── */
+      .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; transition: all 0.3s; }
+      .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .modal { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 24px; padding: 32px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,0.6); position: relative; animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1); }
+      @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+      .modal h3 { color: var(--text-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; font-size: 1.25rem; font-weight: 700; }
+      .modal h3 i { color: var(--accent-primary); font-size: 1.5rem; }
+      .modal-close { position: absolute; top: 20px; right: 20px; background: var(--bg-glass); border: 1px solid var(--border-color); color: var(--text-muted); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; }
+      .modal-close:hover { background: var(--bg-glass-hover); color: var(--text-primary); transform: rotate(90deg); }
+      .modal-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; }
+      .modal-code { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--accent-green); font-weight: 700; letter-spacing: 2px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+      .modal-code.used { text-decoration: line-through; color: var(--text-muted); opacity: 0.4; filter: grayscale(1); }
+
+      /* ─── Live session ─── */
+      .live-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 22px; margin-bottom: 12px; transition: all 0.2s; }
+      .live-card:hover { border-color: rgba(239,68,68,0.3); box-shadow: 0 0 24px rgba(239,68,68,0.06); }
+      .live-card .live-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .live-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 0.73rem; font-weight: 700; background: rgba(239,68,68,0.15); color: var(--accent-red); letter-spacing: 0.5px; }
+      .live-badge .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red); animation: pulse 1.5s infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+      .live-details { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary); }
+      .live-details span { display: flex; align-items: center; gap: 5px; }
+
+      /* ─── Subject/Attendance Cards ─── */
+      .subject-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+      .subject-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 22px; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
+      .subject-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--gradient-primary); opacity: 0; transition: opacity 0.3s; }
+      .subject-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-glow); border-color: rgba(99,102,241,0.3); }
+      .subject-card:hover::after { opacity: 1; }
+      .subject-card h3 { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 10px; font-weight: 700; }
+      .subject-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary); }
+      .subject-meta span { display: flex; align-items: center; gap: 5px; }
+      .att-bar { height: 6px; border-radius: 3px; background: var(--bg-glass); margin-top: 14px; overflow: hidden; }
+      .att-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(0.16,1,0.3,1); }
+
+      /* ─── Activity ─── */
+      .activity-list { display: flex; flex-direction: column; gap: 8px; }
+      .activity-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; font-size: 0.85rem; transition: all 0.2s; }
+      .activity-item:hover { border-color: rgba(99,102,241,0.2); }
+      .activity-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .activity-icon.session { background: rgba(99,102,241,0.15); color: var(--accent-primary); }
+      .activity-icon.registration { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+      .activity-text { flex: 1; }
+      .activity-text strong { color: var(--text-primary); }
+      .activity-time { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+
+      /* ─── Modal form / buttons ─── */
+      .modal-form .form-group { margin-bottom: 14px; }
+      .modal-form label { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 5px; font-weight: 500; }
+      .modal-form input, .modal-form select { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 14px; color: var(--text-primary); font-family: inherit; outline: none; transition: all 0.2s; }
+      .modal-form input:focus, .modal-form select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+      .modal-form select { cursor: pointer; }
+      .modal-btn { padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+      .modal-btn:hover { transform: translateY(-1px); }
+      .modal-btn-green { background: var(--accent-green); color: #fff; }
+      .modal-btn-amber { background: var(--accent-amber); color: #fff; }
+      .modal-btn-ghost { border: 1px solid var(--border-color); background: var(--bg-glass); color: var(--text-primary); }
+
+      /* ─── Empty / Loader / Misc ─── */
+      .empty-state { text-align: center; padding: 56px 24px; color: var(--text-muted); }
+      .empty-state i { font-size: 3.5rem; margin-bottom: 14px; display: block; opacity: 0.5; }
+      .admin-footer { text-align: center; padding: 15px 24px 24px; color: var(--text-muted); font-size: 0.82rem; border-top: 1px solid var(--border-color); margin-top: auto; letter-spacing: 0.5px; }
+      .loader { display: flex; align-items: center; justify-content: center; padding: 56px; }
+      .loader::after { content: ""; width: 34px; height: 34px; border: 3px solid var(--border-color); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .low-att { color: var(--accent-red) !important; font-weight: 600; }
+      .btn-refresh { padding: 7px 16px; font-size: 0.82rem; border-radius: 10px; border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.2s; }
+      .btn-refresh:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-primary-glow); }
+
+      /* ─── Activity date filter ─── */
+      .activity-filter-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; }
+      .activity-date-input {
+        position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+      }
+      .activity-date-tag {
+        display: none; align-items: center; gap: 8px; min-height: 38px; padding: 0 12px; border-radius: 999px;
+        background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.35); color: var(--accent-amber);
+        font-size: 0.8rem; font-weight: 700; letter-spacing: 0.2px;
+      }
+      .activity-date-tag.show { display: inline-flex; }
+      .activity-date-text { white-space: nowrap; }
+      .activity-date-clear {
+        width: 22px; height: 22px; border: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(245,158,11,0.22); color: var(--accent-amber); cursor: pointer; transition: all 0.2s;
+      }
+      .activity-date-clear:hover { background: rgba(239,68,68,0.18); color: var(--accent-red); }
+      .activity-date-trigger {
+        width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-card);
+        color: var(--text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+        transition: all 0.2s; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+      }
+      .activity-date-trigger:hover {
+        border-color: rgba(99,102,241,0.35); background: var(--bg-glass-hover); color: var(--accent-primary);
+      }
+      .activity-date-trigger.active {
+        border-color: rgba(245,158,11,0.38); background: rgba(245,158,11,0.1); color: var(--accent-amber);
+        box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+      }
+
+      /* ─── Add People / Import ─── */
+      .import-section { margin-bottom: 20px; }
+      .import-section h3 { font-size: 1rem; margin-bottom: 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+      .import-section h3 i { font-size: 1.2rem; color: var(--accent-primary); }
+
+      /* Quick Add — Step 1 */
+      .quick-add-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+      .quick-add-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
+      .quick-add-field label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+      .quick-add-field input, .quick-add-field select { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-family: inherit; font-size: 0.88rem; transition: border-color 0.2s; }
+      .quick-add-field input:focus, .quick-add-field select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-primary-glow); }
+      .quick-add-role-field { flex: 0 0 140px; min-width: 140px; }
+      .quick-add-next-btn { align-self: flex-end; padding: 10px 20px; border-radius: 10px; border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; font-family: inherit; font-size: 0.88rem; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+      .quick-add-next-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-primary-glow); }
+
+      /* Quick Add — Step 2 */
+      .quick-add-detail-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px 20px; }
+      .quick-add-detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+      .quick-add-email-display { font-size: 0.88rem; color: var(--text-primary); font-weight: 500; }
+      .btn-ghost { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; font-family: inherit; border-radius: 8px; padding: 4px 10px; font-size: 0.78rem; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+      .btn-ghost:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+      .quick-add-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px; }
+      .quick-add-fields .quick-add-field { min-width: 0; }
+      .quick-add-actions { display: flex; gap: 10px; }
+      .quick-add-actions .btn-primary { padding: 10px 24px; border-radius: 10px; border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; font-family: inherit; font-size: 0.88rem; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+      .quick-add-actions .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-primary-glow); }
+      .quick-add-actions .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+      .divider { text-align: center; padding: 12px 0; color: var(--text-muted); font-size: 0.82rem; font-weight: 600; letter-spacing: 1px; }
+      .file-upload-area { border: 2px dashed var(--border-color); border-radius: 14px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.25s ease; color: var(--text-secondary); }
+      .file-upload-area:hover, .file-upload-area.drag-over { border-color: var(--accent-primary); background: rgba(99,102,241,0.06); }
+      .file-upload-area i { font-size: 2.5rem; color: var(--accent-primary); margin-bottom: 8px; display: block; }
+      .file-upload-area p { margin: 4px 0; font-size: 0.9rem; }
+      .file-upload-area .small { font-size: 0.8rem; color: var(--text-muted); }
+      .file-link { color: var(--accent-primary); cursor: pointer; font-weight: 600; }
+      .file-link:hover { text-decoration: underline; }
+      #importBtn { margin-top: 14px; padding: 10px 28px; font-size: 0.9rem; border-radius: 10px; border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.2s; }
+      #importBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+      #importBtn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-primary-glow); }
+      .import-size-hint { font-size: 0.78rem; color: var(--text-muted); margin-left: 8px; }
+      .file-clear-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.3rem; line-height: 1; padding: 4px; border-radius: 50%; transition: all 0.2s; }
+      .file-clear-btn:hover { color: var(--accent-red); background: rgba(239,68,68,0.1); }
+      .file-upload-area { position: relative; }
+      .info-icon-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 2px 4px; border-radius: 50%; transition: all 0.2s; display: inline-flex; align-items: center; vertical-align: middle; }
+      .info-icon-btn:hover { color: var(--accent-primary); background: rgba(99,102,241,0.1); }
+      .modal.modal-wide { max-width: 720px; }
+      .format-section { margin-bottom: 20px; }
+      .format-section h4 { font-size: 0.92rem; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+      .format-section h4 .badge { font-size: 0.72rem; }
+      .format-img { width: 100%; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 6px; }
+      .format-cols { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; padding: 8px 12px; background: var(--bg-glass); border-radius: 8px; }
+      .format-cols code { background: rgba(99,102,241,0.12); color: var(--accent-primary); padding: 1px 6px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; }
+
+      /* ─── API Key ─── */
+      .apikey-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px; margin-bottom: 20px; }
+      .apikey-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
+      .apikey-generate-row { display: flex; gap: 12px; margin-bottom: 24px; align-items: flex-end; flex-wrap: wrap; }
+      .apikey-field { display: flex; flex-direction: column; gap: 6px; }
+      .apikey-field label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+      .apikey-field input, .apikey-field select { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-family: inherit; font-size: 0.88rem; transition: border-color 0.2s; }
+      .apikey-field input:focus, .apikey-field select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-primary-glow); }
+      .apikey-generate-btn { padding: 10px 20px; border-radius: 10px; border: none; background: var(--gradient-primary); color: #fff; font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+      .apikey-generate-btn:hover { opacity: 0.9; box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+      .apikey-generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .apikey-table { width: 100%; border-collapse: collapse; }
+      .apikey-table th { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-color); }
+      .apikey-table td { padding: 12px 14px; font-size: 0.85rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); }
+      .apikey-table tr:last-child td { border-bottom: none; }
+      .apikey-key-text { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--accent-primary); word-break: break-all; }
+      .apikey-copy-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: all 0.2s; flex-shrink: 0; }
+      .apikey-copy-btn:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: rgba(99,102,241,0.1); }
+      .apikey-copy-btn.copied { border-color: var(--accent-green); color: var(--accent-green); background: rgba(16,185,129,0.1); }
+      .apikey-revoke-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--accent-red); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: all 0.2s; flex-shrink: 0; }
+      .apikey-revoke-btn:hover { border-color: var(--accent-red); background: rgba(239,68,68,0.1); }
+      .apikey-actions { display: flex; gap: 6px; }
+      .apikey-empty { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.88rem; }
+      .apikey-url-box { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+      .apikey-url-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px; }
+      .apikey-url-row { display: flex; align-items: center; gap: 10px; }
+      .apikey-url-text { flex: 1; font-size: 0.85rem; color: var(--accent-primary); word-break: break-all; font-family: 'JetBrains Mono', monospace; }
+
+      /* ─── Mobile overlay ─── */
+      .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
+      .sidebar-backdrop.show { display: block; }
+
+      /* ─── Responsive ─── */
+      @media (max-width: 900px) {
+        .admin-sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); z-index: 200; box-shadow: var(--shadow-lg); }
+        .admin-sidebar.open { transform: translateX(0); }
+        .mobile-toggle { display: flex; align-items: center; justify-content: center; }
+        .admin-body { padding: 20px 16px; }
+        .stats-grid { grid-template-columns: repeat(2,1fr); }
+        .search-wrapper, .filter-select { flex-basis: 100%; max-width: none; }
+        .subject-cards { grid-template-columns: 1fr; }
+        .data-table { font-size: 0.78rem; }
+        .data-table th, .data-table td { padding: 9px 8px; }
+        .table-cell-actions { width: 132px; }
+        .table-footer { flex-direction: column; align-items: stretch; }
+        .pagination { justify-content: space-between; }
+      }
+      @media (max-width: 480px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .topbar-badge { display: none; }
+        .table-actions .btn-xs { min-width: 100%; }
+      }
+    </style>
+  </head>
+  <body class="admin-page">
+    <!-- Sidebar Backdrop (mobile) -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-brand" id="navBrand">
+          <div class="sidebar-brand-icon"><i class='bx bxs-shield-alt-2'></i></div>
+          <span>ScanMark</span>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="sidebar-label">Overview</div>
+          <button class="admin-tab active" data-tab="dashboard"><i class='bx bxs-dashboard'></i> Dashboard</button>
+
+          <div class="sidebar-label">Management</div>
+          <button class="admin-tab" data-tab="people"><i class='bx bxs-group'></i> Add People</button>
+          <button class="admin-tab" data-tab="students"><i class='bx bxs-graduation'></i> Students</button>
+          <button class="admin-tab" data-tab="teachers"><i class='bx bxs-chalkboard'></i> Teachers</button>
+
+          <div class="sidebar-label">Monitoring</div>
+          <button class="admin-tab" data-tab="attendance"><i class='bx bxs-bar-chart-alt-2'></i> Attendance</button>
+          <button class="admin-tab" data-tab="live"><i class='bx bx-broadcast'></i> Live Sessions</button>
+          <button class="admin-tab" data-tab="activity"><i class='bx bx-history'></i>Recent Activity</button>
+
+          <div class="sidebar-label">API's</div>
+          <button class="admin-tab" data-tab="apikey"><i class='bx bx-key'></i> API Key</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <button class="sidebar-logout" id="logoutBtn"><i class='bx bx-power-off'></i> Logout</button>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <div class="admin-main">
+        <!-- Top Bar -->
+        <header class="admin-topbar">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="mobile-toggle" id="mobileToggleBtn"><i class='bx bx-menu'></i></button>
+            <div class="topbar-title" id="topbarTitle"><i class='bx bxs-dashboard'></i> Dashboard</div>
+          </div>
+          <div class="topbar-right">
+            <span class="topbar-badge"><i class='bx bxs-shield-alt-2'></i> Admin</span>
+          </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <div class="admin-body">
+          <!-- Dashboard Panel -->
+          <div class="admin-panel active" id="panel-dashboard">
+            <div class="stats-grid" id="statsGrid">
+              <div class="loader"></div>
+            </div>
+          </div>
+
+          <!-- Add People Panel -->
+           
+<div class="admin-panel" id="panel-people">
+            <div class="section-header">
+              <h2><i class='bx bxs-group'></i> Add New People</h2>
+              <p>Register students or teachers manually or import via EXCEL</p>
+            </div>
+            
+            <div class="card">
+              <div class="import-section">
+                <h3><i class='bx bx-plus-circle'></i> Quick Add / Change</h3>
+                <div class="quick-add-step" id="quickAddStep1">
+                  <div class="quick-add-row">
+                    <div class="quick-add-field">
+                      <label for="quickAddEmail">Institute Email</label>
+                      <input type="email" id="quickAddEmail" placeholder="e.g. user@nitw.ac.in" />
+                    </div>
+                    <div class="quick-add-field quick-add-role-field">
+                      <label for="quickAddRole">Role</label>
+                      <select id="quickAddRole">
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                      </select>
+                    </div>
+                    <button id="quickAddNextBtn" class="btn-primary quick-add-next-btn"><i class='bx bx-right-arrow-alt'></i> Next</button>
+                  </div>
+                </div>
+                <div class="quick-add-step" id="quickAddStep2" style="display:none;">
+                  <div class="quick-add-detail-card">
+                    <div class="quick-add-detail-header">
+                      <span class="badge badge-blue" id="quickAddRoleBadge">Student</span>
+                      <span class="quick-add-email-display" id="quickAddEmailDisplay"></span>
+                      <button class="btn-xs btn-ghost" id="quickAddBackBtn"><i class='bx bx-arrow-back'></i> Change</button>
+                    </div>
+                    <div class="quick-add-fields" id="quickAddFields"></div>
+                    <div class="quick-add-actions">
+                      <button id="quickAddSubmitBtn" class="btn-primary"><i class='bx bx-user-plus'></i> Add User</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="divider">OR</div>
+              
+              <div class="import-section">
+                <h3><i class='bx bx-import'></i> Bulk Import <button class="info-icon-btn" id="importInfoBtn" title="View required Excel format"><i class='bx bx-info-circle'></i></button></h3>
+                <div class="file-upload-area" id="dropZone">
+                  <i class='bx bx-cloud-upload'></i>
+                  <p>Drag & drop excel file here</p>
+                  <p class="small">or <span class="file-link">browse files</span></p>
+                  <input type="file" id="csvFileInput" accept=".xlsx ,.xls,.csv" hidden />
+                </div>
+                <button id="importBtn" class="btn-secondary" disabled>Import Users</button>
+                <span class="import-size-hint">Max file size: 2.5 GB</span>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Students Panel -->
+          <div class="admin-panel" id="panel-students">
+            <div class="section-header"><h2><i class='bx bxs-graduation'></i> All Students</h2></div>
+            <div class="filter-bar">
+              <div class="search-wrapper">
+                <i class='bx bx-search'></i>
+                <input type="text" id="studentSearch" placeholder="Search by name, email, or roll number..." />
+              </div>
+              <div class="filter-select">
+                <select id="studentFilter" style="background-color: var(--bg-secondary);">
+                  <option value="">All</option>
+                  <option value="registered">Registered</option>
+                  <option value="pre-seeded">Pre-seeded</option>
+                </select>
+              </div>
+            </div>
+            <div id="studentsTable"><div class="loader"></div></div>
+          </div>
+
+          <!-- Teachers Panel -->
+          <div class="admin-panel" id="panel-teachers">
+            <div class="section-header"><h2><i class='bx bxs-chalkboard'></i> All Teachers</h2></div>
+            <div class="filter-bar">
+              <div class="search-wrapper">
+                <i class='bx bx-search'></i>
+                <input type="text" id="teacherSearch" placeholder="Search by name or email..." />
+              </div>
+              <div class="filter-select">
+                <select id="teacherFilter" style="background-color: var(--bg-secondary);">
+                  <option value="">All</option>
+                  <option value="registered">Registered</option>
+                  <option value="pre-seeded">Pre-seeded</option>
+                </select>
+              </div>
+            </div>
+            <div id="teachersTable"><div class="loader"></div></div>
+          </div>
+
+          <!-- Attendance Panel -->
+          <div class="admin-panel" id="panel-attendance">
+            <div class="section-header"><h2><i class='bx bxs-bar-chart-alt-2'></i> Attendance Overview</h2></div>
+            <div class="filter-bar">
+              <div class="search-wrapper">
+                <i class='bx bx-search'></i>
+                <input type="text" id="attendanceSearch" placeholder="Search by subject code..." />
+              </div>
+            </div>
+            <div id="attendanceOverview"><div class="loader"></div></div>
+          </div>
+
+          <!-- Live Sessions Panel -->
+          <div class="admin-panel" id="panel-live">
+            <div class="section-header">
+              <h2><i class='bx bx-broadcast'></i> Live Sessions</h2>
+              <button class="btn-refresh" id="refreshLiveBtn">
+                <i class='bx bx-refresh'></i> Refresh
+              </button>
+            </div>
+            <div id="liveSessions"><div class="loader"></div></div>
+          </div>
+
+          <!-- Activity Panel -->
+          <div class="admin-panel" id="panel-activity">
+            <div class="section-header">
+              <h2><i class='bx bx-history'></i> Recent Activity</h2>
+              <div class="activity-filter-controls">
+                <div class="activity-date-tag" id="activityDateTag">
+                  <span class="activity-date-text" id="activityDateLabel"></span>
+                  <button type="button" class="activity-date-clear" id="activityDateClearBtn" title="Clear date filter" aria-label="Clear date filter">
+                    <i class='bx bx-x'></i>
+                  </button>
+                </div>
+                <button type="button" class="activity-date-trigger" id="activityDateBtn" title="Filter by date" aria-label="Filter activity by date"><i class='bx bx-calendar'></i></button>
+                <input type="date" id="activityDateInput" class="activity-date-input">
+              </div>
+            </div>
+            <div id="activityLog"><div class="loader"></div></div>
+          </div>
+
+          <!-- API Key Panel -->
+          <div class="admin-panel" id="panel-apikey">
+            <div class="section-header">
+              <h2><i class='bx bx-key'></i> API Key</h2>
+            </div>
+
+            <!-- URL Structure Info -->
+            <div class="apikey-url-box">
+              <div class="apikey-url-label">API URL Structure</div>
+              <div class="apikey-url-row">
+                <code class="apikey-url-text">/api/attendance/{subjectCode}/{DD-MM-YYYY}/{periodNumber}?apikey={YOUR_API_KEY}</code>
+              </div>
+            </div>
+
+            <!-- Generate Key Card -->
+            <div class="apikey-card">
+              <p class="apikey-desc">Generate API keys to access attendance data externally. Each key can be revoked independently.</p>
+              <div class="apikey-generate-row">
+                <div class="apikey-field" style="flex:1; min-width:200px;">
+                  <label for="apikeyLabel">Label</label>
+                  <input type="text" id="apikeyLabel" placeholder="e.g. API-1" autocomplete="off" maxlength="10" />
+                </div>
+                <button class="apikey-generate-btn" id="apikeyGenerateBtn"><i class='bx bx-plus'></i> Generate Key</button>
+              </div>
+            </div>
+
+            <!-- Keys List Card -->
+            <div class="apikey-card">
+              <div style="font-size:0.88rem; font-weight:600; color:var(--text-primary); margin-bottom:16px;">Your API Keys</div>
+              <div id="apikeyListContainer">
+                <div class="apikey-empty">Loading...</div>
+              </div>
+            </div>
+
+            <!-- URL Builder Card -->
+            <div class="apikey-card">
+              <div style="font-size:0.88rem; font-weight:600; color:var(--text-primary); margin-bottom:16px;">URL Builder</div>
+              <p class="apikey-desc">Build a complete URL by selecting subject, date, period, and an API key.</p>
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
+                <div class="apikey-field">
+                  <label for="apikeySubjectCode">Subject Code</label>
+                  <input type="text" id="apikeySubjectCode" placeholder="e.g. CS1204" autocomplete="off" />
+                </div>
+                <div class="apikey-field">
+                  <label for="apikeyDate">Date</label>
+                  <input type="date" id="apikeyDate"/>
+                </div>
+                <div class="apikey-field">
+                  <label for="apikeyPeriod">Period</label>
+                  <select id="apikeyPeriod" disabled>
+                    <option value="">Select date first</option>
+                  </select>
+                </div>
+                <div class="apikey-field">
+                  <label for="apikeyKeySelect">API Key</label>
+                  <select id="apikeyKeySelect">
+                    <option value="">Select a key</option>
+                  </select>
+                </div>
+              </div>
+              <div class="apikey-url-box">
+                <div class="apikey-url-label">Endpoint URL</div>
+                <div class="apikey-url-row">
+                  <code class="apikey-url-text" id="apikeyUrlText">Select all fields to generate URL</code>
+                  <button class="apikey-copy-btn" id="apikeyCopyBtn" title="Copy URL" style="opacity:0.4; pointer-events:none;"><i class='bx bx-copy'></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <footer class="admin-footer">
+            <p>Designed and developed by <strong>GSSV</strong></p>
+            <p style="margin-top: 6px; opacity: 0.7; font-size: 0.75rem;">&copy; 2026 ScanMark Attendance System. All rights reserved.</p>
+          </footer>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal" id="modalContent"></div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (!ApiService.isAuthenticated() || ApiService.getUser()?.role !== "admin") {
+        window.location.href = "/admin-login";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", function () {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Nav Brand → Dashboard ───
+      document.getElementById("navBrand").addEventListener("click", function () {
+        switchTab("dashboard");
+      });
+
+      // ─── Mobile Sidebar Toggle ───
+      var sidebar = document.getElementById("adminSidebar");
+      var backdrop = document.getElementById("sidebarBackdrop");
+      document.getElementById("mobileToggleBtn").addEventListener("click", function () {
+        sidebar.classList.toggle("open");
+        backdrop.classList.toggle("show");
+      });
+      backdrop.addEventListener("click", function () {
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+      });
+
+      // ─── Refresh Live Sessions Button ───
+      document.getElementById("refreshLiveBtn").addEventListener("click", function () {
+        loadLiveSessions();
+      });
+
+      // ─── Toast ───
+      function showToast(msg, type) {
+        var existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        var t = document.createElement("div");
+        t.className = "toast toast-" + type;
+        t.innerHTML = '<div class="toast-content"><span class="toast-icon">' + (type === "success" ? "\u2713" : "\u2717") + '</span><span class="toast-message">' + msg + "</span></div>";
+        document.body.appendChild(t);
+        requestAnimationFrame(function () { t.classList.add("show"); });
+        setTimeout(function () { t.classList.remove("show"); setTimeout(function () { t.remove(); }, 300); }, 4000);
+      }
+
+      // ─── Topbar title map ───
+      var tabTitles = {
+        dashboard: { icon: "bxs-dashboard", label: "Dashboard" },
+        people: { icon: "bxs-group", label: "Add People" },
+        students: { icon: "bxs-graduation", label: "Students" },
+        teachers: { icon: "bxs-chalkboard", label: "Teachers" },
+        attendance: { icon: "bxs-bar-chart-alt-2", label: "Attendance" },
+        live: { icon: "bx-broadcast", label: "Live Sessions" },
+        activity: { icon: "bx-history", label: "Activity" },
+        apikey: { icon: "bx-key", label: "API Key" }
+      };
+
+      var ROWS_PER_PAGE = 15;
+      var studentRows = [];
+      var teacherRows = [];
+      var attendanceRows = [];
+      var studentPage = 1;
+      var teacherPage = 1;
+
+      // ─── Tab Switching ───
+      var tabButtons = document.querySelectorAll(".admin-tab");
+      var panels = document.querySelectorAll(".admin-panel");
+
+      function switchTab(name) {
+        tabButtons.forEach(function (t) { t.classList.toggle("active", t.dataset.tab === name); });
+        panels.forEach(function (p) { p.classList.toggle("active", p.id === "panel-" + name); });
+
+        // Update topbar title
+        var info = tabTitles[name] || tabTitles.dashboard;
+        document.getElementById("topbarTitle").innerHTML = '<i class="bx ' + info.icon + '"></i> ' + info.label;
+
+        // Close sidebar on mobile
+        sidebar.classList.remove("open");
+        backdrop.classList.remove("show");
+
+        if (name === "dashboard") loadStats();
+        if (name === "students") loadStudents();
+        if (name === "teachers") loadTeachers();
+        if (name === "attendance") loadAttendanceOverview();
+        if (name === "live") loadLiveSessions();
+        if (name === "activity") loadActivity();
+        if (name === "apikey") loadApiKeys();
+      }
+
+      tabButtons.forEach(function (t) {
+        t.addEventListener("click", function () { switchTab(t.dataset.tab); });
+      });
+
+      // ─── Modal ───
+      function openModal(html) {
+        document.getElementById("modalContent").innerHTML = html;
+        document.getElementById("modalOverlay").classList.add("active");
+        document.getElementById("modalOverlay").classList.add("show");
+        bindModalEvents();
+      }
+
+      function closeModal() {
+        document.getElementById("modalOverlay").classList.remove("active");
+        document.getElementById("modalOverlay").classList.remove("show");
+        document.getElementById("modalContent").classList.remove("modal-wide");
+      }
+
+      document.getElementById("modalOverlay").addEventListener("click", function (e) {
+        if (e.target === e.currentTarget) closeModal();
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeModal();
+      });
+
+      // Bind delegated events inside the modal after content is set
+      function bindModalEvents() {
+        var modal = document.getElementById("modalContent");
+
+        // Close buttons
+        modal.querySelectorAll("[data-action='close']").forEach(function (btn) {
+          btn.addEventListener("click", closeModal);
+        });
+
+        // Regen buttons inside modal
+        modal.querySelectorAll("[data-action='regen']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            regenRecoveryCodes(btn.dataset.role, btn.dataset.id, btn.dataset.name);
+          });
+        });
+
+        // Reset password form
+        var form = modal.querySelector("[data-action='reset-form']");
+        if (form) {
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            resetPassword(form.dataset.role, form.dataset.id);
+          });
+        }
+      }
+
+      // ─── API Helpers ───
+      async function adminFetch(endpoint) {
+        var res = await fetch("/api/admin" + endpoint, { headers: ApiService.getHeaders() });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Request failed");
+        return data;
+      }
+
+      async function adminPost(endpoint, body) {
+        var res = await fetch("/api/admin" + endpoint, {
+          method: "POST",
+          headers: ApiService.getHeaders(),
+          body: JSON.stringify(body),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Request failed");
+        return data;
+      }
+
+      async function adminPut(endpoint, body) {
+        var res = await fetch("/api/admin" + endpoint, {
+          method: "PUT",
+          headers: ApiService.getHeaders(),
+          body: JSON.stringify(body),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Request failed");
+        return data;
+      }
+
+      async function adminDelete(endpoint) {
+        var res = await fetch("/api/admin" + endpoint, {
+          method: "DELETE",
+          headers: ApiService.getHeaders(),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Request failed");
+        return data;
+      }
+
+      // ═══════════════════════════════
+      // ─── DASHBOARD / STATS ───
+      // ═══════════════════════════════
+      async function loadStats() {
+        try {
+          var data = await adminFetch("/stats");
+          var s = data.stats;
+          document.getElementById("statsGrid").innerHTML =
+            '<div class="stat-card"><div class="stat-icon blue"><i class="bx bxs-graduation"></i></div><div class="stat-value">' + s.totalStudents + '</div><div class="stat-label">Total Students (' + s.registeredStudents + ' registered)</div></div>' +
+            '<div class="stat-card"><div class="stat-icon green"><i class="bx bxs-chalkboard"></i></div><div class="stat-value">' + s.totalTeachers + '</div><div class="stat-label">Total Teachers (' + s.registeredTeachers + ' registered)</div></div>' +
+            '<div class="stat-card"><div class="stat-icon cyan"><i class="bx bx-book-open"></i></div><div class="stat-value">' + s.totalSubjects + '</div><div class="stat-label">Subjects</div></div>' +
+            '<div class="stat-card"><div class="stat-icon amber"><i class="bx bx-calendar-check"></i></div><div class="stat-value">' + s.totalSessions + '</div><div class="stat-label">Total Sessions</div></div>' +
+            '<div class="stat-card"><div class="stat-icon red"><i class="bx bx-broadcast"></i></div><div class="stat-value">' + s.activeSessions + '</div><div class="stat-label">Active Sessions Now</div></div>' +
+            '<div class="stat-card"><div class="stat-icon blue"><i class="bx bx-calendar"></i></div><div class="stat-value">' + s.todaySessions + '</div><div class="stat-label">Sessions Today</div></div>' +
+            '<div class="stat-card"><div class="stat-icon amber"><i class="bx bx-user-plus"></i></div><div class="stat-value">' + s.preSeededStudents + '</div><div class="stat-label">Pre-seeded Students</div></div>' +
+            '<div class="stat-card"><div class="stat-icon green"><i class="bx bx-user-plus"></i></div><div class="stat-value">' + s.preSeededTeachers + '</div><div class="stat-label">Pre-seeded Teachers</div></div>';
+        } catch (err) {
+          document.getElementById("statsGrid").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── STUDENTS ───
+      // ═══════════════════════════════
+      async function loadStudents() {
+        var search = document.getElementById("studentSearch").value.trim();
+        var status = document.getElementById("studentFilter").value;
+        var endpoint = "/students?";
+        if (search) endpoint += "search=" + encodeURIComponent(search) + "&";
+        if (status) endpoint += "status=" + encodeURIComponent(status);
+
+        try {
+          var data = await adminFetch(endpoint);
+          studentRows = data.students || [];
+          renderStudentsTable(studentRows);
+        } catch (err) {
+          document.getElementById("studentsTable").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      function renderStudentsTable(students) {
+        if (!students.length) {
+          document.getElementById("studentsTable").innerHTML = '<div class="empty-state"><i class="bx bx-user-x"></i>No students found</div>';
+          return;
+        }
+        var totalPages = Math.max(1, Math.ceil(students.length / ROWS_PER_PAGE));
+        if (studentPage > totalPages) studentPage = totalPages;
+        var start = (studentPage - 1) * ROWS_PER_PAGE;
+        var pageRows = students.slice(start, start + ROWS_PER_PAGE);
+        var html = '<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Roll No</th><th>Subjects Registered</th><th>Dept</th><th>Year</th><th>Status</th><th>Recovery Codes</th><th class="table-cell-actions">Actions</th></tr></thead><tbody>';
+        pageRows.forEach(function (s) {
+          var statusBadge = s.isRegistered ? '<span class="badge badge-green">Registered</span>' : '<span class="badge badge-amber">Pre-seeded</span>';
+          var codesBadge = s.recoveryCodesLeft === 0 ? '<span class="badge badge-red">0 / 8</span>' : '<span class="badge badge-blue">' + s.recoveryCodesLeft + ' / 8</span>';
+          html += '<tr>';
+          html += '<td>' + esc(s.name) + '</td>';
+          html += '<td class="table-cell-tight">' + esc(s.email) + '</td>';
+          html += '<td>' + esc(s.rollNumber || "\u2014") + '</td>';
+          html +=  '<td>' + esc(s.subjectCodes || "\u2014") + '</td>';
+          html += '<td>' + esc(s.department || "\u2014") + '</td>';
+          html += '<td>' + (s.year || "\u2014") + '</td>';
+          html += '<td>' + statusBadge + '</td>';
+          html += '<td>' + codesBadge + '</td>';
+          html += '<td class="table-cell-actions"><div class="table-actions">';
+          html += '<button class="btn-xs btn-edit" data-action="edit-user" data-role="student" data-id="' + s._id + '" data-idx="' + (start + pageRows.indexOf(s)) + '"><i class="bx bx-edit-alt"></i> Edit</button>';
+          html += '<button class="btn-xs btn-view" data-action="view-codes" data-role="student" data-id="' + s._id + '"><i class="bx bx-key"></i> Codes</button>';
+          html += '<button class="btn-xs btn-regen" data-action="regen-codes" data-role="student" data-id="' + s._id + '" data-name="' + esc(s.name) + '"><i class="bx bx-refresh"></i> Regen</button>';
+          if (s.isRegistered) html += '<button class="btn-xs btn-reset" data-action="reset-pwd" data-role="student" data-id="' + s._id + '" data-name="' + esc(s.name) + '"><i class="bx bx-lock-open"></i> Reset</button>';
+          html += '<button class="btn-xs btn-delete" data-action="delete-user" data-role="student" data-id="' + s._id + '" data-name="' + esc(s.name) + '"><i class="bx bx-trash"></i></button>';
+          html += '</div></td></tr>';
+        });
+        html += '</tbody></table>' + renderPagination("student", students.length, studentPage, totalPages) + '</div>';
+        document.getElementById("studentsTable").innerHTML = html;
+        bindTableActions("studentsTable");
+        bindPaginationActions("studentsTable", "student");
+      }
+
+      var studentSearchTimer;
+      document.getElementById("studentSearch").addEventListener("input", function () {
+        clearTimeout(studentSearchTimer);
+        studentPage = 1;
+        studentSearchTimer = setTimeout(loadStudents, 400);
+      });
+      document.getElementById("studentFilter").addEventListener("change", function () {
+        studentPage = 1;
+        loadStudents();
+      });
+
+      // ═══════════════════════════════
+      // ─── TEACHERS ───
+      // ═══════════════════════════════
+      async function loadTeachers() {
+        var search = document.getElementById("teacherSearch").value.trim();
+        var status = document.getElementById("teacherFilter").value;
+        var endpoint = "/teachers?";
+        if (search) endpoint += "search=" + encodeURIComponent(search) + "&";
+        if (status) endpoint += "status=" + encodeURIComponent(status);
+
+        try {
+          var data = await adminFetch(endpoint);
+          teacherRows = data.teachers || [];
+          renderTeachersTable(teacherRows);
+        } catch (err) {
+          document.getElementById("teachersTable").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      function renderTeachersTable(teachers) {
+        if (!teachers.length) {
+          document.getElementById("teachersTable").innerHTML = '<div class="empty-state"><i class="bx bx-user-x"></i>No teachers found</div>';
+          return;
+        }
+        var totalPages = Math.max(1, Math.ceil(teachers.length / ROWS_PER_PAGE));
+        if (teacherPage > totalPages) teacherPage = totalPages;
+        var start = (teacherPage - 1) * ROWS_PER_PAGE;
+        var pageRows = teachers.slice(start, start + ROWS_PER_PAGE);
+        var html = '<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Dept</th><th>Type</th><th>Subjects</th><th>Status</th><th>Recovery Codes</th><th class="table-cell-actions">Actions</th></tr></thead><tbody>';
+        pageRows.forEach(function (t) {
+          var statusBadge = t.isRegistered ? '<span class="badge badge-green">Registered</span>' : '<span class="badge badge-amber">Pre-seeded</span>';
+          var codesBadge = t.recoveryCodesLeft === 0 ? '<span class="badge badge-red">0 / 8</span>' : '<span class="badge badge-blue">' + t.recoveryCodesLeft + ' / 8</span>';
+          html += '<tr>';
+          html += '<td>' + esc(t.name) + '</td>';
+          html += '<td class="table-cell-tight">' + esc(t.email) + '</td>';
+          html += '<td>' + esc(t.department || "\u2014") + '</td>';
+          html += '<td>' + esc(t.professorType || "\u2014") + '</td>';
+          html += '<td class="table-cell-tight">' + esc((t.subjectCodes || []).join(", ") || "\u2014") + '</td>';
+          html += '<td>' + statusBadge + '</td>';
+          html += '<td>' + codesBadge + '</td>';
+          html += '<td class="table-cell-actions"><div class="table-actions">';
+          html += '<button class="btn-xs btn-edit" data-action="edit-user" data-role="teacher" data-id="' + t._id + '" data-idx="' + (start + pageRows.indexOf(t)) + '"><i class="bx bx-edit-alt"></i> Edit</button>';
+          html += '<button class="btn-xs btn-view" data-action="view-codes" data-role="teacher" data-id="' + t._id + '"><i class="bx bx-key"></i> Codes</button>';
+          html += '<button class="btn-xs btn-regen" data-action="regen-codes" data-role="teacher" data-id="' + t._id + '" data-name="' + esc(t.name) + '"><i class="bx bx-refresh"></i> Regen</button>';
+          if (t.isRegistered) html += '<button class="btn-xs btn-reset" data-action="reset-pwd" data-role="teacher" data-id="' + t._id + '" data-name="' + esc(t.name) + '"><i class="bx bx-lock-open"></i> Reset</button>';
+          html += '<button class="btn-xs btn-delete" data-action="delete-user" data-role="teacher" data-id="' + t._id + '" data-name="' + esc(t.name) + '"><i class="bx bx-trash"></i></button>';
+          html += '</div></td></tr>';
+        });
+        html += '</tbody></table>' + renderPagination("teacher", teachers.length, teacherPage, totalPages) + '</div>';
+        document.getElementById("teachersTable").innerHTML = html;
+        bindTableActions("teachersTable");
+        bindPaginationActions("teachersTable", "teacher");
+      }
+
+      var teacherSearchTimer;
+      document.getElementById("teacherSearch").addEventListener("input", function () {
+        clearTimeout(teacherSearchTimer);
+        teacherPage = 1;
+        teacherSearchTimer = setTimeout(loadTeachers, 400);
+      });
+      document.getElementById("teacherFilter").addEventListener("change", function () {
+        teacherPage = 1;
+        loadTeachers();
+      });
+
+      function renderPagination(type, totalRows, currentPage, totalPages) {
+        var perPage = type === "activity" ? ACTIVITY_PER_PAGE : ROWS_PER_PAGE;
+        if (totalRows <= perPage) {
+          return '<div class="table-footer"><div class="table-meta">Showing ' + totalRows + ' of ' + totalRows + ' entries</div></div>';
+        }
+
+        var start = (currentPage - 1) * perPage + 1;
+        var end = Math.min(totalRows, currentPage * perPage);
+        var html = '<div class="table-footer">';
+        html += '<div class="table-meta">Showing ' + start + '-' + end + ' of ' + totalRows + ' entries</div>';
+        html += '<div class="pagination">';
+        html += '<button class="pagination-btn" data-action="page-change" data-role="' + type + '" data-page="' + (currentPage - 1) + '"' + (currentPage === 1 ? ' disabled' : '') + '>Prev</button>';
+
+        // Build page numbers with ellipsis for large page counts
+        var pages = [];
+        if (totalPages <= 7) {
+          for (var i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          if (currentPage > 3) pages.push("...");
+          var rangeStart = Math.max(2, currentPage - 1);
+          var rangeEnd = Math.min(totalPages - 1, currentPage + 1);
+          if (currentPage <= 3) rangeEnd = Math.max(rangeEnd, 4);
+          if (currentPage >= totalPages - 2) rangeStart = Math.min(rangeStart, totalPages - 3);
+          for (var j = rangeStart; j <= rangeEnd; j++) pages.push(j);
+          if (currentPage < totalPages - 2) pages.push("...");
+          pages.push(totalPages);
+        }
+
+        pages.forEach(function (p) {
+          if (p === "...") {
+            html += '<span class="pagination-ellipsis">&hellip;</span>';
+          } else {
+            html += '<button class="pagination-btn' + (p === currentPage ? ' active' : '') + '" data-action="page-change" data-role="' + type + '" data-page="' + p + '">' + p + '</button>';
+          }
+        });
+
+        html += '<button class="pagination-btn" data-action="page-change" data-role="' + type + '" data-page="' + (currentPage + 1) + '"' + (currentPage === totalPages ? ' disabled' : '') + '>Next</button>';
+        html += '</div></div>';
+        return html;
+      }
+
+      function bindPaginationActions(containerId, type) {
+        var container = document.getElementById(containerId);
+        container.querySelectorAll("[data-action='page-change']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var nextPage = Number(btn.dataset.page);
+            if (!nextPage || btn.disabled) return;
+
+            if (type === "student") {
+              studentPage = nextPage;
+              renderStudentsTable(studentRows);
+            } else {
+              teacherPage = nextPage;
+              renderTeachersTable(teacherRows);
+            }
+          });
+        });
+      }
+
+      // ═══════════════════════════════
+      // ─── EVENT DELEGATION FOR TABLES ───
+      // ═══════════════════════════════
+      function bindTableActions(containerId) {
+        var container = document.getElementById(containerId);
+
+        container.querySelectorAll("[data-action='view-codes']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            viewRecoveryCodes(btn.dataset.role, btn.dataset.id);
+          });
+        });
+
+        container.querySelectorAll("[data-action='regen-codes']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            regenRecoveryCodes(btn.dataset.role, btn.dataset.id, btn.dataset.name);
+          });
+        });
+
+        container.querySelectorAll("[data-action='reset-pwd']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            resetPasswordModal(btn.dataset.role, btn.dataset.id, btn.dataset.name);
+          });
+        });
+
+        container.querySelectorAll("[data-action='edit-user']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            editUser(btn.dataset.role, btn.dataset.id, Number(btn.dataset.idx));
+          });
+        });
+
+        container.querySelectorAll("[data-action='delete-user']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            deleteUser(btn.dataset.role, btn.dataset.id, btn.dataset.name);
+          });
+        });
+      }
+
+      // ═══════════════════════════════
+      // ─── RECOVERY CODES ───
+      // ═══════════════════════════════
+      async function viewRecoveryCodes(role, id) {
+        try {
+          var data = await adminFetch("/" + role + "s/" + id + "/recovery-codes");
+          var codes = data.recoveryCodes || [];
+          var codesHtml = "";
+          if (codes.length === 0) {
+            codesHtml = '<div class="empty-state" style="padding:24px"><i class="bx bx-shield-x"></i>No recovery codes remaining</div>';
+          } else {
+            codesHtml = '<div class="modal-codes">';
+            codes.forEach(function (c) { codesHtml += '<div class="modal-code">' + esc(c) + '</div>'; });
+            codesHtml += '</div>';
+          }
+          openModal(
+            '<h3><i class="bx bx-key"></i> Recovery Codes \u2014 ' + esc(data.user.name) + '</h3>' +
+            '<p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:8px;">' + esc(data.user.email) + '</p>' +
+            '<p style="font-size:0.85rem;color:var(--text-secondary);">' + codes.length + ' / 8 codes remaining</p>' +
+            codesHtml +
+            '<div style="display:flex;gap:8px;margin-top:16px;">' +
+            '<button class="modal-btn modal-btn-green" data-action="regen" data-role="' + role + '" data-id="' + id + '" data-name="' + esc(data.user.name) + '"><i class="bx bx-refresh"></i> Regenerate All</button>' +
+            '<button class="modal-btn modal-btn-ghost" data-action="close">Close</button>' +
+            '</div>'
+          );
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      async function regenRecoveryCodes(role, id, name) {
+        if (!confirm("Regenerate all 8 recovery codes for " + name + "? This will invalidate any existing codes.")) return;
+        try {
+          var data = await adminPost("/" + role + "s/" + id + "/recovery-codes");
+          showToast(data.message, "success");
+          var codesHtml = '<div class="modal-codes">';
+          data.recoveryCodes.forEach(function (c) { codesHtml += '<div class="modal-code">' + esc(c) + '</div>'; });
+          codesHtml += '</div>';
+          openModal(
+            '<h3><i class="bx bx-check-shield"></i> New Recovery Codes \u2014 ' + esc(name) + '</h3>' +
+            '<p style="color:var(--accent-green);font-size:0.85rem;margin-bottom:4px;">8 new codes generated successfully</p>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Make sure to share these with the user. They are one-time use.</p>' +
+            codesHtml +
+            '<button class="modal-btn modal-btn-ghost" data-action="close" style="margin-top:16px;">Close</button>'
+          );
+          if (role === "student") loadStudents();
+          else loadTeachers();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── RESET PASSWORD ───
+      // ═══════════════════════════════
+      function resetPasswordModal(role, id, name) {
+        openModal(
+          '<h3><i class="bx bx-lock-open"></i> Reset Password \u2014 ' + esc(name) + '</h3>' +
+          '<form class="modal-form" data-action="reset-form" data-role="' + role + '" data-id="' + id + '">' +
+          '<div class="form-group"><label>New Password (min 6 characters)</label><input type="password" id="resetPwdInput" minlength="6" required placeholder="Enter new password" /></div>' +
+          '<div class="form-group"><label>Confirm Password</label><input type="password" id="resetPwdConfirm" minlength="6" required placeholder="Confirm new password" /></div>' +
+          '<div style="display:flex;gap:8px;margin-top:16px;">' +
+          '<button type="submit" class="modal-btn modal-btn-amber">Reset Password</button>' +
+          '<button type="button" class="modal-btn modal-btn-ghost" data-action="close">Cancel</button>' +
+          '</div></form>'
+        );
+        setTimeout(function () {
+          var inp = document.getElementById("resetPwdInput");
+          if (inp) inp.focus();
+        }, 100);
+      }
+
+      async function resetPassword(role, id) {
+        var pw = document.getElementById("resetPwdInput").value;
+        var confirmPw = document.getElementById("resetPwdConfirm").value;
+        if (pw !== confirmPw) { showToast("Passwords do not match.", "error"); return; }
+        try {
+          var data = await adminPut("/" + role + "s/" + id + "/reset-password", { newPassword: pw });
+          showToast(data.message, "success");
+          closeModal();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── EDIT USER ───
+      // ═══════════════════════════════
+      function editUser(role, id, idx) {
+        var row = role === "student" ? studentRows[idx] : teacherRows[idx];
+        if (!row) { showToast("User data not found.", "error"); return; }
+
+        var html = '<h3><i class="bx bx-edit-alt"></i> Edit ' + (role === "student" ? "Student" : "Teacher") + ' &mdash; ' + esc(row.name) + '</h3>' +
+          '<p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:12px;">' + esc(row.email) + '</p>' +
+          '<form class="modal-form" id="editUserForm" data-role="' + role + '" data-id="' + id + '">';
+
+        html += '<div class="form-group"><label>Name</label><input type="text" id="editName" value="' + esc(row.name || "") + '" required minlength="2" maxlength="100" /></div>';
+
+        var deptOptions = ["Civil Engineering","Electrical Engineering","Mechanical Engineering","Electronics and Communication Engineering","Metallurgical and Materials Engineering","Chemical Engineering","Computer Science and Engineering","Biotechnology","Mathematics and Computing","Integrated M.Sc. Mathematics","Integrated M.Sc. Physics","Integrated M.Sc. Chemistry"];
+        var deptSelect = '<select id="editDepartment"><option value="">Select Department</option>';
+        deptOptions.forEach(function (d) { deptSelect += '<option value="' + d + '"' + (row.department === d ? ' selected' : '') + '>' + d + '</option>'; });
+        deptSelect += '</select>';
+
+        if (role === "student") {
+          html += '<div class="form-group"><label>Roll Number</label><input type="text" id="editRollNumber" value="' + esc(row.rollNumber || "") + '" /></div>';
+          html += '<div class="form-group"><label>Subject Codes (comma-separated)</label><input type="text" id="editSubjectCodes" value="' + esc((row.subjectCodes || []).join(", ")) + '" /></div>';
+          html += '<div class="form-group"><label>Grad Program</label><select id="editGradProgram"><option value="">—</option><option value="BTech"' + (row.gradProgram === "BTech" ? " selected" : "") + '>BTech</option><option value="MTech"' + (row.gradProgram === "MTech" ? " selected" : "") + '>MTech</option><option value="PhD"' + (row.gradProgram === "PhD" ? " selected" : "") + '>PhD</option></select></div>';
+          html += '<div class="form-group"><label>Year</label><input type="number" id="editYear" min="1" max="6" value="' + (row.year || "") + '" /></div>';
+          html += '<div class="form-group"><label>Department</label>' + deptSelect + '</div>';
+        } else {
+          html += '<div class="form-group"><label>Subject Codes (comma-separated)</label><input type="text" id="editSubjectCodes" value="' + esc((row.subjectCodes || []).join(", ")) + '" /></div>';
+          html += '<div class="form-group"><label>Department</label>' + deptSelect + '</div>';
+          html += '<div class="form-group"><label>Professor Type</label><select id="editProfessorType"><option value="">—</option><option value="Assistant"' + (row.professorType === "Assistant" ? " selected" : "") + '>Assistant</option><option value="Associate"' + (row.professorType === "Associate" ? " selected" : "") + '>Associate</option><option value="Professor"' + (row.professorType === "Professor" ? " selected" : "") + '>Professor</option></select></div>';
+        }
+
+        html += '<div style="display:flex;gap:8px;margin-top:16px;">' +
+          '<button type="submit" class="modal-btn modal-btn-green"><i class="bx bx-check"></i> Save Changes</button>' +
+          '<button type="button" class="modal-btn modal-btn-ghost" data-action="close">Cancel</button>' +
+          '</div></form>';
+
+        openModal(html);
+
+        document.getElementById("editUserForm").addEventListener("submit", function (e) {
+          e.preventDefault();
+          saveEdit(role, id);
+        });
+      }
+
+      async function saveEdit(role, id) {
+        var body = { name: document.getElementById("editName").value.trim() };
+
+        var codesInput = document.getElementById("editSubjectCodes");
+        if (codesInput) {
+          body.subjectCodes = codesInput.value.split(",").map(function (c) { return c.trim().toUpperCase(); }).filter(Boolean);
+        }
+
+        var deptInput = document.getElementById("editDepartment");
+        if (deptInput) body.department = deptInput.value.trim();
+
+        if (role === "student") {
+          var rollInput = document.getElementById("editRollNumber");
+          if (rollInput) body.rollNumber = rollInput.value.trim().toUpperCase();
+          var gradInput = document.getElementById("editGradProgram");
+          if (gradInput) body.gradProgram = gradInput.value;
+          var yearInput = document.getElementById("editYear");
+          if (yearInput && yearInput.value) body.year = Number(yearInput.value);
+          else body.year = null;
+        } else {
+          var profInput = document.getElementById("editProfessorType");
+          if (profInput) body.professorType = profInput.value;
+        }
+
+        try {
+          var data = await adminPut("/" + role + "s/" + id + "/edit", body);
+          showToast(data.message, "success");
+          closeModal();
+          if (role === "student") loadStudents();
+          else loadTeachers();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── DELETE USER ───
+      // ═══════════════════════════════
+      async function deleteUser(role, id, name) {
+        if (!confirm("Are you sure you want to delete " + name + "? This action cannot be undone.")) return;
+        try {
+          var data = await adminDelete("/" + role + "s/" + id);
+          showToast(data.message, "success");
+          if (role === "student") loadStudents();
+          else loadTeachers();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── ATTENDANCE OVERVIEW ───
+      // ═══════════════════════════════
+      async function loadAttendanceOverview() {
+        try {
+          var data = await adminFetch("/attendance/overview");
+          attendanceRows = data.overview || [];
+          renderAttendanceOverview();
+        } catch (err) {
+          document.getElementById("attendanceOverview").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      function renderAttendanceOverview() {
+        var search = document.getElementById("attendanceSearch").value.trim().toLowerCase();
+        var filteredOverview = attendanceRows.filter(function (sub) {
+          return !search || String(sub.subjectCode || "").toLowerCase().indexOf(search) !== -1;
+        });
+
+        if (!attendanceRows.length) {
+          document.getElementById("attendanceOverview").innerHTML = '<div class="empty-state"><i class="bx bx-calendar-x"></i>No attendance data yet</div>';
+          return;
+        }
+
+        if (!filteredOverview.length) {
+          document.getElementById("attendanceOverview").innerHTML = '<div class="empty-state"><i class="bx bx-search-alt"></i>No subjects match that code</div>';
+          return;
+        }
+
+        var html = '<div class="subject-cards">';
+        filteredOverview.forEach(function (sub) {
+          var barColor = sub.avgAttendance >= 80 ? "var(--accent-green)" : sub.avgAttendance >= 55 ? "var(--accent-amber)" : "var(--accent-red)";
+          html +=
+            '<div class="subject-card" data-action="view-subject" data-code="' + esc(sub.subjectCode) + '">' +
+            '<h3>' + esc(sub.subjectCode) + '</h3>' +
+            '<div class="subject-meta">' +
+            '<span><i class="bx bx-calendar"></i> ' + sub.totalPeriods + ' sessions</span>' +
+            '<span><i class="bx bx-group"></i> ' + sub.enrolledStudents + ' students</span>' +
+            '<span><i class="bx bx-user"></i> ' + (sub.teachers.join(", ") || "\u2014") + '</span>' +
+            '</div>' +
+            '<div class="att-bar"><div class="att-bar-fill" style="width:' + sub.avgAttendance + '%;background:' + barColor + ';"></div></div>' +
+            '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.78rem;">' +
+            '<span style="color:var(--text-muted)">Avg Attendance</span>' +
+            '<span style="color:' + barColor + ';font-weight:600;">' + sub.avgAttendance + '%</span>' +
+            '</div></div>';
+        });
+        html += '</div>';
+        document.getElementById("attendanceOverview").innerHTML = html;
+
+        document.getElementById("attendanceOverview").querySelectorAll("[data-action='view-subject']").forEach(function (card) {
+          card.addEventListener("click", function () {
+            viewSubjectDetail(card.dataset.code);
+          });
+        });
+      }
+
+      document.getElementById("attendanceSearch").addEventListener("input", function () {
+        renderAttendanceOverview();
+      });
+
+      async function viewSubjectDetail(code) {
+        try {
+          var data = await adminFetch("/attendance/subject/" + encodeURIComponent(code));
+          var html = '<h3><i class="bx bx-book-open"></i> ' + esc(code) + ' \u2014 Attendance Detail</h3>';
+          html += '<div style="display:flex;gap:16px;margin-bottom:16px;font-size:0.85rem;color:var(--text-secondary);">';
+          html += '<span>' + data.totalPeriods + ' sessions</span>';
+          html += '<span>' + data.enrolledStudents + ' enrolled</span>';
+          html += '<span style="color:var(--accent-red);">' + data.lowAttendance.length + ' below 80%</span>';
+          html += '</div>';
+
+          if (data.studentAttendance.length) {
+            html += '<div style="max-height:400px;overflow-y:auto;"><table class="data-table"><thead><tr><th>Name</th><th>Roll No</th><th>Attended</th><th>Total</th><th>%</th></tr></thead><tbody>';
+            data.studentAttendance.forEach(function (s) {
+              var cls = s.percentage < 80 ? ' class="low-att"' : '';
+              html += '<tr><td>' + esc(s.name) + '</td><td>' + esc(s.rollNumber || "\u2014") + '</td><td>' + s.attended + '</td><td>' + s.total + '</td><td' + cls + '>' + s.percentage + '%</td></tr>';
+            });
+            html += '</tbody></table></div>';
+          } else {
+            html += '<div class="empty-state" style="padding:24px"><i class="bx bx-user-x"></i>No students enrolled</div>';
+          }
+
+          html += '<button class="modal-btn modal-btn-ghost" data-action="close" style="margin-top:16px;">Close</button>';
+          openModal(html);
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── LIVE SESSIONS ───
+      // ═══════════════════════════════
+      async function loadLiveSessions() {
+        try {
+          var data = await adminFetch("/attendance/live-sessions");
+          if (!data.sessions.length) {
+            document.getElementById("liveSessions").innerHTML = '<div class="empty-state"><i class="bx bx-broadcast"></i>No active sessions right now</div>';
+            return;
+          }
+          var html = '';
+          data.sessions.forEach(function (s) {
+            var elapsed = s.startTime ? timeSince(new Date(s.startTime)) : "\u2014";
+            html +=
+              '<div class="live-card">' +
+              '<div class="live-header">' +
+              '<h3 style="color:var(--text-primary);font-size:1rem;">' + esc(s.subjectCode) + '</h3>' +
+              '<div class="live-badge"><span class="pulse-dot"></span> LIVE</div>' +
+              '</div>' +
+              '<div class="live-details">' +
+              '<span><i class="bx bx-user"></i> ' + (s.teacher ? esc(s.teacher.name) : 'Unknown') + '</span>' +
+              '<span><i class="bx bx-time-five"></i> ' + elapsed + '</span>' +
+              '<span><i class="bx bx-group"></i> ' + s.studentsPresent + ' students scanned</span>' +
+              '<span><i class="bx bx-calendar"></i> ' + esc(s.date) + '</span>' +
+              '</div>' +
+              (s.studentList && s.studentList.length ? '<div style="margin-top:10px;font-size:0.8rem;color:var(--text-muted);">Students: ' + s.studentList.map(function (st) { return esc(st.name) + ' (' + esc(st.rollNumber || '') + ')'; }).join(', ') + '</div>' : '') +
+              '</div>';
+          });
+          document.getElementById("liveSessions").innerHTML = html;
+        } catch (err) {
+          document.getElementById("liveSessions").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      // ═══════════════════════════════
+      // ─── ACTIVITY LOG ───
+      // ═══════════════════════════════
+      var ACTIVITY_PER_PAGE = 10;
+      var activityPage = 1;
+      var activityAll = [];
+      var activityDateFilter = "";
+      var activityDateBtn = document.getElementById("activityDateBtn");
+      var activityDateInput = document.getElementById("activityDateInput");
+      var activityDateTag = document.getElementById("activityDateTag");
+      var activityDateLabel = document.getElementById("activityDateLabel");
+      var activityDateClearBtn = document.getElementById("activityDateClearBtn");
+
+      function formatActivityFilterDate(value) {
+        if (!value) return "";
+        var parts = value.split("-");
+        if (parts.length !== 3) return value;
+        var year = Number(parts[0]);
+        var month = Number(parts[1]) - 1;
+        var day = Number(parts[2]);
+        var date = new Date(year, month, day);
+        return date.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
+      }
+
+      function syncActivityFilterUi() {
+        var hasFilter = Boolean(activityDateFilter);
+        activityDateTag.classList.toggle("show", hasFilter);
+        activityDateBtn.classList.toggle("active", hasFilter);
+        activityDateLabel.textContent = hasFilter ? formatActivityFilterDate(activityDateFilter) : "";
+      }
+
+      activityDateBtn.addEventListener("click", function () {
+        if (typeof activityDateInput.showPicker === "function") {
+          activityDateInput.showPicker();
+          return;
+        }
+        activityDateInput.focus();
+        activityDateInput.click();
+      });
+
+      activityDateClearBtn.addEventListener("click", function () {
+        activityDateFilter = "";
+        activityDateInput.value = "";
+        activityPage = 1;
+        syncActivityFilterUi();
+        renderActivityList();
+      });
+
+      activityDateInput.addEventListener("change", function () {
+        activityDateFilter = this.value;
+        activityPage = 1;
+        syncActivityFilterUi();
+        renderActivityList();
+      });
+
+      async function loadActivity() {
+        try {
+          var data = await adminFetch("/activity");
+
+          activityAll = [];
+          (data.sessions || []).forEach(function (s) { activityAll.push(Object.assign({}, s, { _type: "session", _date: new Date(s.createdAt) })); });
+          (data.registrations || []).forEach(function (r) { activityAll.push(Object.assign({}, r, { _type: "registration", _date: new Date(r.createdAt) })); });
+          activityAll.sort(function (a, b) { return b._date - a._date; });
+
+          renderActivityList();
+        } catch (err) {
+          document.getElementById("activityLog").innerHTML = '<div class="empty-state"><i class="bx bx-error-circle"></i>' + err.message + '</div>';
+        }
+      }
+
+      function renderActivityList() {
+        var filtered = activityAll;
+        if (activityDateFilter) {
+          filtered = activityAll.filter(function (item) {
+            var d = item._date;
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1).padStart(2, "0");
+            var day = String(d.getDate()).padStart(2, "0");
+            return (y + "-" + m + "-" + day) === activityDateFilter;
+          });
+        }
+
+        if (!filtered.length) {
+          var msg = activityDateFilter ? "No activity on " + activityDateFilter : "No activity yet";
+          document.getElementById("activityLog").innerHTML = '<div class="empty-state"><i class="bx bx-history"></i>' + msg + '</div>';
+          return;
+        }
+
+        var totalPages = Math.max(1, Math.ceil(filtered.length / ACTIVITY_PER_PAGE));
+        if (activityPage > totalPages) activityPage = totalPages;
+        var start = (activityPage - 1) * ACTIVITY_PER_PAGE;
+        var pageItems = filtered.slice(start, start + ACTIVITY_PER_PAGE);
+
+        var html = '<div class="activity-list">';
+        pageItems.forEach(function (item) {
+          if (item._type === "session") {
+            var status = item.isActive ? '<span class="badge badge-red">Active</span>' : '<span class="badge badge-green">Completed</span>';
+            html +=
+              '<div class="activity-item">' +
+              '<div class="activity-icon session"><i class="bx bx-broadcast"></i></div>' +
+              '<div class="activity-text">' +
+              '<strong>' + esc(item.teacher) + '</strong> held a session for <strong>' + esc(item.subjectCode) + '</strong> ' + status +
+              '<br><span style="color:var(--text-muted);font-size:0.78rem;">' + item.studentsCount + ' students attended</span>' +
+              '</div>' +
+              '<div class="activity-time">' + formatDate(item._date) + '</div>' +
+              '</div>';
+          } else {
+            html +=
+              '<div class="activity-item">' +
+              '<div class="activity-icon registration"><i class="bx bx-user-plus"></i></div>' +
+              '<div class="activity-text">' +
+              '<strong>' + esc(item.name) + '</strong> registered as <span class="badge badge-' + (item.role === 'teacher' ? 'cyan' : 'blue') + '">' + item.role + '</span>' +
+              '<br><span style="color:var(--text-muted);font-size:0.78rem;">' + esc(item.email) + '</span>' +
+              '</div>' +
+              '<div class="activity-time">' + formatDate(item._date) + '</div>' +
+              '</div>';
+          }
+        });
+        html += '</div>';
+
+        html += renderPagination("activity", filtered.length, activityPage, totalPages);
+        document.getElementById("activityLog").innerHTML = html;
+
+        // Bind pagination for activity
+        document.getElementById("activityLog").querySelectorAll("[data-action='page-change']").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var nextPage = Number(btn.dataset.page);
+            if (!nextPage || btn.disabled) return;
+            activityPage = nextPage;
+            renderActivityList();
+          });
+        });
+      }
+
+      syncActivityFilterUi();
+
+      // ─── Helpers ───
+      function esc(str) {
+        if (!str) return "";
+        var d = document.createElement("div");
+        d.textContent = String(str);
+        return d.innerHTML;
+      }
+
+      function timeSince(date) {
+        var s = Math.floor((Date.now() - date) / 1000);
+        if (s < 60) return s + "s ago";
+        var m = Math.floor(s / 60);
+        if (m < 60) return m + "m ago";
+        var h = Math.floor(m / 60);
+        return h + "h " + (m % 60) + "m ago";
+      }
+
+      function formatDate(d) {
+        var now = new Date();
+        if ((now - d) < 86400000 && d.getDate() === now.getDate()) {
+          return "Today " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        var yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth()) {
+          return "Yesterday " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      // ═══════════════════════════════
+      // ─── QUICK ADD ───
+      // ═══════════════════════════════
+      var quickAddStep1 = document.getElementById("quickAddStep1");
+      var quickAddStep2 = document.getElementById("quickAddStep2");
+      var quickAddEmailInput = document.getElementById("quickAddEmail");
+      var quickAddRoleSelect = document.getElementById("quickAddRole");
+      var quickAddNextBtn = document.getElementById("quickAddNextBtn");
+      var quickAddBackBtn = document.getElementById("quickAddBackBtn");
+      var quickAddSubmitBtn = document.getElementById("quickAddSubmitBtn");
+      var quickAddFields = document.getElementById("quickAddFields");
+      var quickAddRoleBadge = document.getElementById("quickAddRoleBadge");
+      var quickAddEmailDisplay = document.getElementById("quickAddEmailDisplay");
+
+      quickAddNextBtn.addEventListener("click", function () {
+        var email = quickAddEmailInput.value.trim();
+        if (!email || !email.includes("@")) {
+          showToast("Please enter a valid institute email.", "error");
+          quickAddEmailInput.focus();
+          return;
+        }
+
+        var role = quickAddRoleSelect.value;
+        quickAddEmailDisplay.textContent = email;
+        quickAddRoleBadge.textContent = role === "teacher" ? "Teacher" : "Student";
+        quickAddRoleBadge.className = "badge " + (role === "teacher" ? "badge-green" : "badge-blue");
+
+        // Build form fields based on role
+        var fieldsHtml =
+          '<div class="quick-add-field">' +
+          '<label for="qaName">Full Name</label>' +
+          '<input type="text" id="qaName" placeholder="Enter full name" />' +
+          '</div>';
+
+        if (role === "student") {
+          fieldsHtml +=
+            '<div class="quick-add-field">' +
+            '<label for="qaRollNumber">Roll Number</label>' +
+            '<input type="text" id="qaRollNumber" placeholder="e.g. 24CSB0A01" />' +
+            '</div>';
+        }
+
+        fieldsHtml +=
+          '<div class="quick-add-field">' +
+          '<label for="qaSubjectCodes">Subject Codes (comma-separated)</label>' +
+          '<input type="text" id="qaSubjectCodes" placeholder="e.g. CS1204, CS303" />' +
+          '</div>';
+
+        quickAddFields.innerHTML = fieldsHtml;
+        quickAddStep1.style.display = "none";
+        quickAddStep2.style.display = "block";
+
+        setTimeout(function () {
+          var nameInput = document.getElementById("qaName");
+          if (nameInput) nameInput.focus();
+        }, 100);
+      });
+
+      // Allow Enter key on email input to trigger Next
+      quickAddEmailInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); quickAddNextBtn.click(); }
+      });
+
+      quickAddBackBtn.addEventListener("click", function () {
+        quickAddStep2.style.display = "none";
+        quickAddStep1.style.display = "block";
+        quickAddEmailInput.focus();
+      });
+
+      quickAddSubmitBtn.addEventListener("click", async function () {
+        var role = quickAddRoleSelect.value;
+        var email = quickAddEmailInput.value.trim();
+        var name = (document.getElementById("qaName") || {}).value || "";
+        var subjectCodes = (document.getElementById("qaSubjectCodes") || {}).value || "";
+        var rollNumber = (document.getElementById("qaRollNumber") || {}).value || "";
+
+        if (!name.trim()) {
+          showToast("Name is required.", "error");
+          document.getElementById("qaName").focus();
+          return;
+        }
+
+        quickAddSubmitBtn.disabled = true;
+        quickAddSubmitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Adding...';
+        try {
+          var res = await fetch("/api/admin/quick-add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + ApiService.getToken(),
+            },
+            body: JSON.stringify({ role: role, email: email, name: name.trim(), subjectCodes: subjectCodes, rollNumber: rollNumber }),
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Failed to add user");
+
+          showToast(data.message, "success");
+
+          // Reset to step 1
+          quickAddStep2.style.display = "none";
+          quickAddStep1.style.display = "block";
+          quickAddEmailInput.value = "";
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          quickAddSubmitBtn.disabled = false;
+          quickAddSubmitBtn.innerHTML = '<i class="bx bx-user-plus"></i> Add User';
+        }
+      });
+
+      // ═══════════════════════════════
+      // ─── ADD PEOPLE / IMPORT ───
+      // ═══════════════════════════════
+
+      // Info icon — show Excel format popup
+      document.getElementById("importInfoBtn").addEventListener("click", function () {
+        var html =
+          '<h3><i class="bx bx-info-circle"></i> Excel File Format</h3>' +
+          '<p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:18px;">Your <code>.xlsx</code> file must have two sheets named exactly <strong>Teacher</strong> and <strong>Student</strong> (visible as tabs at the bottom).</p>' +
+
+          '<div class="format-section">' +
+          '<h4><span class="badge badge-green">Sheet 1</span> Teacher</h4>' +
+          '<img class="format-img" src="/assets/image-2.png" alt="Teacher sheet format" />' +
+          '<div class="format-cols">Required columns: <code>Name</code> <code>Email</code> <code>Subject Code</code> <code>Subject Name</code><br>One row per subject. A teacher with multiple subjects will have multiple rows.</div>' +
+          '</div>' +
+
+          '<div class="format-section">' +
+          '<h4><span class="badge badge-blue">Sheet 2</span> Student</h4>' +
+          '<img class="format-img" src="/assets/image-1.png" alt="Student sheet format" />' +
+          '<div class="format-cols">Required columns: <code>Subject Code</code> <code>Subject Name</code> <code>Roll No</code> <code>Name</code> <code>Email</code><br>One row per subject enrollment. A student in multiple subjects will have multiple rows.</div>' +
+          '</div>' +
+
+          '<button class="modal-btn modal-btn-ghost" data-action="close">Got it</button>';
+
+        openModal(html);
+        document.getElementById("modalContent").classList.add("modal-wide");
+      });
+
+      var dropZone = document.getElementById("dropZone");
+      var csvFileInput = document.getElementById("csvFileInput");
+      var importBtn = document.getElementById("importBtn");
+      var parsedImportData = null;
+
+      function resetDropZone() {
+        parsedImportData = null;
+        importBtn.disabled = true;
+        csvFileInput.value = "";
+        dropZone.innerHTML =
+          '<i class="bx bx-cloud-upload"></i>' +
+          '<p>Drag & drop excel file here</p>' +
+          '<p class="small">or <span class="file-link">browse files</span></p>';
+      }
+
+      // Click drop zone → open file picker
+      dropZone.addEventListener("click", function () { csvFileInput.click(); });
+
+      // Drag-over styling
+      dropZone.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+      dropZone.addEventListener("dragleave", function () {
+        dropZone.classList.remove("drag-over");
+      });
+
+      // Drop handler
+      dropZone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        var file = e.dataTransfer.files[0];
+        if (file) handleExcelFile(file);
+      });
+
+      // File input change
+      csvFileInput.addEventListener("change", function () {
+        if (csvFileInput.files[0]) handleExcelFile(csvFileInput.files[0]);
+      });
+
+      function handleExcelFile(file) {
+        var validTypes = [
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "application/vnd.ms-excel",
+          "text/csv",
+        ];
+        if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|csv)$/i)) {
+          showToast("Please upload a valid Excel file (.xlsx, .xls)", "error");
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            var wb = XLSX.read(e.target.result, { type: "array" });
+
+            var teacherRows = [];
+            var studentRows = [];
+
+            if (wb.Sheets["Teacher"]) {
+              teacherRows = XLSX.utils.sheet_to_json(wb.Sheets["Teacher"]);
+            }
+            if (wb.Sheets["Student"]) {
+              studentRows = XLSX.utils.sheet_to_json(wb.Sheets["Student"]);
+            }
+
+            if (!teacherRows.length && !studentRows.length) {
+              showToast("No 'Teacher' or 'Student' sheet found in the file.", "error");
+              return;
+            }
+
+            parsedImportData = { teachers: teacherRows, students: studentRows };
+            importBtn.disabled = false;
+
+            // Update drop zone to show file info + clear button
+            dropZone.innerHTML =
+              '<button class="file-clear-btn" id="fileClearBtn" title="Remove file"><i class="bx bx-x"></i></button>' +
+              '<i class="bx bx-check-circle" style="color:var(--accent-green);"></i>' +
+              '<p style="color:var(--accent-green);font-weight:600;">' + esc(file.name) + '</p>' +
+              '<p class="small">' + teacherRows.length + ' teacher row(s), ' + studentRows.length + ' student row(s)</p>';
+            document.getElementById("fileClearBtn").addEventListener("click", function (e) {
+              e.stopPropagation();
+              resetDropZone();
+            });
+          } catch (err) {
+            showToast("Failed to parse file: " + err.message, "error");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      // Import button
+      importBtn.addEventListener("click", async function () {
+        if (!parsedImportData) return;
+        importBtn.disabled = true;
+        importBtn.textContent = "Importing...";
+        try {
+          var token = ApiService.getToken();
+          var res = await fetch("/api/admin/import", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + token,
+            },
+            body: JSON.stringify(parsedImportData),
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Import failed");
+
+          showToast(data.message, "success");
+          importBtn.textContent = "Import Users";
+          resetDropZone();
+        } catch (err) {
+          showToast(err.message, "error");
+          importBtn.disabled = false;
+          importBtn.textContent = "Import Users";
+        }
+      });
+
+      // ═══════════════════════════════
+      // ─── API KEY ───
+      // ═══════════════════════════════
+      var apikeyLabelInput = document.getElementById("apikeyLabel");
+      var apikeyGenerateBtn = document.getElementById("apikeyGenerateBtn");
+      var apikeyListContainer = document.getElementById("apikeyListContainer");
+      var apikeySubjectInput = document.getElementById("apikeySubjectCode");
+      var apikeyDateInput = document.getElementById("apikeyDate");
+      var apikeyPeriodSelect = document.getElementById("apikeyPeriod");
+      var apikeyKeySelect = document.getElementById("apikeyKeySelect");
+      var apikeyUrlText = document.getElementById("apikeyUrlText");
+      var apikeyCopyBtn = document.getElementById("apikeyCopyBtn");
+      var apikeyBaseUrl = "";
+      var apikeyList = [];
+
+      // Fetch base URL
+      (async function () {
+        try {
+          var data = await adminFetch("/config/website-url");
+          apikeyBaseUrl = data.url || "";
+        } catch (e) {
+          apikeyBaseUrl = window.location.origin;
+        }
+      })();
+
+      async function loadApiKeys() {
+        try {
+          var data = await adminFetch("/apikeys");
+          apikeyList = data.apiKeys || [];
+          renderApiKeys();
+          updateApikeyKeySelect();
+        } catch (err) {
+          apikeyListContainer.innerHTML = '<div class="apikey-empty">Failed to load API keys.</div>';
+        }
+      }
+
+      function renderApiKeys() {
+        if (!apikeyList.length) {
+          apikeyListContainer.innerHTML = '<div class="apikey-empty">No API keys yet. Generate one above.</div>';
+          return;
+        }
+        var html = '<table class="apikey-table"><thead><tr><th>Label</th><th>API Key</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+        apikeyList.forEach(function (k) {
+          var d = new Date(k.createdAt);
+          var dateStr = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          html += '<tr>'
+            + '<td>' + esc(k.label) + '</td>'
+            + '<td><span class="apikey-key-text">' + esc(k.key) + '</span></td>'
+            + '<td style="white-space:nowrap; color:var(--text-muted); font-size:0.82rem;">' + dateStr + '</td>'
+            + '<td><div class="apikey-actions">'
+            + '<button class="apikey-copy-btn" title="Copy key" onclick="copyApiKey(\'' + esc(k.key) + '\', this)"><i class="bx bx-copy"></i></button>'
+            + '<button class="apikey-revoke-btn" title="Revoke key" onclick="revokeApiKey(\'' + k._id + '\')"><i class="bx bx-trash"></i></button>'
+            + '</div></td>'
+            + '</tr>';
+        });
+        html += '</tbody></table>';
+        apikeyListContainer.innerHTML = html;
+      }
+
+      function updateApikeyKeySelect() {
+        var html = '<option value="">Select a key</option>';
+        apikeyList.forEach(function (k) {
+          html += '<option value="' + esc(k.key) + '">' + esc(k.label) + ' (' + k.key.substring(0, 8) + '...)</option>';
+        });
+        apikeyKeySelect.innerHTML = html;
+        updateApikeyUrl();
+      }
+
+      window.copyApiKey = function (key, btn) {
+        navigator.clipboard.writeText(key).then(function () {
+          btn.classList.add("copied");
+          btn.innerHTML = '<i class="bx bx-check"></i>';
+          setTimeout(function () {
+            btn.classList.remove("copied");
+            btn.innerHTML = '<i class="bx bx-copy"></i>';
+          }, 2000);
+        });
+      };
+
+      window.revokeApiKey = async function (id) {
+        if (!confirm("Revoke this API key? Any integrations using it will stop working.")) return;
+        try {
+          await adminDelete("/apikeys/" + id);
+          showToast("API key revoked.", "success");
+          loadApiKeys();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      };
+
+      apikeyGenerateBtn.addEventListener("click", async function () {
+        var label = apikeyLabelInput.value.trim();
+        if (!label) {
+          showToast("Please enter a label for the API key.", "error");
+          apikeyLabelInput.focus();
+          return;
+        }
+        apikeyGenerateBtn.disabled = true;
+        try {
+          var data = await adminPost("/apikeys", { label: label });
+          showToast("API key generated: " + data.apiKey.key.substring(0, 8) + "...", "success");
+          apikeyLabelInput.value = "";
+          loadApiKeys();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+        apikeyGenerateBtn.disabled = false;
+      });
+
+      // ─── URL Builder ───
+      function updateApikeyUrl() {
+        var subjectCode = apikeySubjectInput.value.trim().toUpperCase();
+        var date = apikeyDateInput.value;
+        var period = apikeyPeriodSelect.value;
+        var key = apikeyKeySelect.value;
+
+        if (subjectCode && date && period && key) {
+          var parts = date.split("-");
+          var formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+          var url = (apikeyBaseUrl || window.location.origin) + "/api/attendance/" + encodeURIComponent(subjectCode) + "/" + formattedDate + "/" + encodeURIComponent(period) + "?apikey=" + encodeURIComponent(key);
+          apikeyUrlText.textContent = url;
+          apikeyCopyBtn.style.opacity = "1";
+          apikeyCopyBtn.style.pointerEvents = "auto";
+        } else {
+          apikeyUrlText.textContent = "Select all fields to generate URL";
+          apikeyCopyBtn.style.opacity = "0.4";
+          apikeyCopyBtn.style.pointerEvents = "none";
+        }
+      }
+
+      apikeySubjectInput.addEventListener("input", updateApikeyUrl);
+      apikeyPeriodSelect.addEventListener("change", updateApikeyUrl);
+      apikeyKeySelect.addEventListener("change", updateApikeyUrl);
+
+      apikeyDateInput.addEventListener("change", async function () {
+        var date = apikeyDateInput.value;
+        var subjectCode = apikeySubjectInput.value.trim().toUpperCase();
+        apikeyPeriodSelect.innerHTML = '<option value="">Loading...</option>';
+        apikeyPeriodSelect.disabled = true;
+        updateApikeyUrl();
+
+        if (!date) {
+          apikeyPeriodSelect.innerHTML = '<option value="">Select date first</option>';
+          return;
+        }
+
+        try {
+          var data = await adminFetch("/periods-by-date?date=" + encodeURIComponent(date) + (subjectCode ? "&subjectCode=" + encodeURIComponent(subjectCode) : ""));
+          var periods = data.periods || [];
+
+          if (!periods.length) {
+            apikeyPeriodSelect.innerHTML = '<option value="">No periods found</option>';
+            return;
+          }
+
+          var html = '<option value="">Select period</option>';
+          periods.forEach(function (p, i) {
+            var startTime = new Date(p.startTime);
+            var h = startTime.getHours();
+            var m = startTime.getMinutes();
+            var ampm = h >= 12 ? "PM" : "AM";
+            var h12 = h % 12 || 12;
+            var timeStr = h12 + ":" + String(m).padStart(2, "0") + " " + ampm;
+            html += '<option value="' + (i + 1) + '">Period-' + (i + 1) + ' (' + timeStr + ')</option>';
+          });
+          apikeyPeriodSelect.innerHTML = html;
+          apikeyPeriodSelect.disabled = false;
+        } catch (err) {
+          apikeyPeriodSelect.innerHTML = '<option value="">Failed to load</option>';
+        }
+        updateApikeyUrl();
+      });
+
+      apikeyCopyBtn.addEventListener("click", function () {
+        var url = apikeyUrlText.textContent;
+        if (!url || url === "Select all fields to generate URL") return;
+        navigator.clipboard.writeText(url).then(function () {
+          apikeyCopyBtn.classList.add("copied");
+          apikeyCopyBtn.innerHTML = '<i class="bx bx-check"></i>';
+          setTimeout(function () {
+            apikeyCopyBtn.classList.remove("copied");
+            apikeyCopyBtn.innerHTML = '<i class="bx bx-copy"></i>';
+          }, 2000);
+        });
+      });
+
+      // Load API keys on tab switch
+      loadApiKeys();
+
+      // ─── Initial Load ───
+      loadStats();
+    </script>
+  </body>
+</html>

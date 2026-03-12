@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ScanMark — Mark and manage attendance with cryptographically secure, real-time QR codes."
+    />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="landing-page">
+      <div class="landing-bg">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+        <div class="bg-orb bg-orb-3"></div>
+      </div>
+
+      <!-- Hamburger menu (top-right) -->
+      <div class="landing-menu">
+        <button class="landing-menu-btn" id="menuBtn" aria-label="Menu">
+          <i class='bx bx-menu'></i>
+        </button>
+        <div class="landing-dropdown" id="menuDropdown">
+          <a href="/teacher-login" class="landing-dropdown-item">
+            <i class='bx bxs-chalkboard'></i> Login as Teacher
+          </a>
+          <a href="/admin-login" class="landing-dropdown-item">
+            <i class='bx bxs-shield-alt-2'></i> Login as Admin
+          </a>
+        </div>
+      </div>
+
+      <div class="landing-content">
+        <div class="landing-hero">
+          <div class="hero-badge"><i class='bx bx-lock-alt'></i> Secure & Fast</div>
+          <h1 class="hero-title">
+            ScanMark<br /><span class="gradient-text">System</span>
+          </h1>
+          <p class="hero-subtitle">
+            Effortless attendance tracking with cryptographically secure,
+            real-time QR codes. Built for modern classrooms.
+          </p>
+        </div>
+        <div class="landing-cards" style="max-width: 400px; margin: 0 auto;">
+          <div class="role-card" id="studentCard">
+            <div class="role-card-glow"></div>
+            <div class="role-icon"><i class='bx bxs-graduation'></i></div>
+            <h2>Student</h2>
+            <p>
+              Scan QR codes to mark attendance, view your records, and manage
+              your profile.
+            </p>
+            <a href="/student-login" class="btn btn-primary btn-block"
+              >Student Login</a
+            >
+            <a href="/student-register" class="role-register"
+              >Don't have an account? <strong>Register</strong></a
+            >
+          </div>
+        </div>
+      </div>
+      <footer class="landing-footer">
+        Designed and Developed by <strong>GSSV</strong>
+      </footer>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // Hamburger dropdown toggle
+      const menuBtn = document.getElementById('menuBtn');
+      const menuDropdown = document.getElementById('menuDropdown');
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuDropdown.classList.toggle('open');
+      });
+      document.addEventListener('click', () => menuDropdown.classList.remove('open'));
+
+      // If already logged in, redirect to appropriate dashboard
+      document.addEventListener("DOMContentLoaded", () => {
+        if (ApiService.isAuthenticated()) {
+          const user = ApiService.getUser();
+          if (user.role === "student")
+            window.location.href = "/student-dashboard";
+          else if (user.role === "teacher")
+            window.location.href = "/teacher-dashboard";
+        }
+      });
+    </script>
+  </body>
+</html>

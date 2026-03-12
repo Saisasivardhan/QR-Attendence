@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-container">
+        <a href="/" class="back-btn"><i class='bx bx-arrow-back'></i> Back to Home</a>
+        <div class="auth-header">
+          <div class="auth-icon"><i class='bx bxs-graduation'></i></div>
+          <h1>Student Registration</h1>
+          <p>Create your account to start marking attendance</p>
+        </div>
+        <form id="studentRegisterForm" class="auth-form">
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <input
+              type="email"
+              id="reg-email"
+              placeholder="john@university.edu"
+              required
+            />
+            <div id="lookupStatus" class="form-hint" style="margin-top:4px;"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="reg-name">Full Name</label>
+              <input
+                type="text"
+                id="reg-name"
+                placeholder="John Doe"
+                required
+                minlength="2"
+              />
+            </div>
+            <div class="form-group">
+              <label for="reg-roll">Roll Number</label>
+              <input
+                type="text"
+                id="reg-roll"
+                placeholder="CH21B001"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="reg-gradProgram">Graduation Program</label>
+              <select id="reg-gradProgram" required>
+                <option value="">Select Program</option>
+                <option value="BTech">BTech</option>
+                <option value="MTech">MTech</option>
+                <option value="PhD">PhD</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="reg-year">Year of Study</label>
+              <input
+                type="number"
+                id="reg-year"
+                min="1"
+                max="6"
+                placeholder="1"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="reg-dept">Department</label>
+            <select id="reg-dept" required>
+              <option value="">Select Department</option>
+              <option value="Civil Engineering">Civil Engineering</option>
+              <option value="Electrical Engineering">Electrical Engineering</option>
+              <option value="Mechanical Engineering">Mechanical Engineering</option>
+              <option value="Electronics and Communication Engineering">Electronics and Communication Engineering</option>
+              <option value="Metallurgical and Materials Engineering">Metallurgical and Materials Engineering</option>
+              <option value="Chemical Engineering">Chemical Engineering</option>
+              <option value="Computer Science and Engineering">Computer Science and Engineering</option>
+              <option value="Biotechnology">Biotechnology</option>
+              <option value="Mathematics and Computing">Mathematics and Computing</option>
+              <option value="Integrated M.Sc. Mathematics">Integrated M.Sc. Mathematics</option>
+              <option value="Integrated M.Sc. Physics">Integrated M.Sc. Physics</option>
+              <option value="Integrated M.Sc. Chemistry">Integrated M.Sc. Chemistry</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reg-subjects"
+              >Subjects Registered Codes
+              <span class="form-hint"
+                >(comma separated, e.g. CS1204, CS303)</span
+              ></label
+            >
+            <input
+              type="text"
+              id="reg-subjects"
+              placeholder="CS1204, CS303"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Set Password</label>
+            <div class="password-input">
+              <input
+                type="password"
+                id="reg-password"
+                placeholder="Minimum 6 characters"
+                minlength="6"
+                required
+                autocomplete="new-password"
+              />
+              <button type="button" class="password-toggle" data-target="reg-password" aria-label="Show password" aria-pressed="false">
+                <i class='bx bx-show'></i>
+              </button>
+            </div>
+          </div>
+          <div id="errorMsg" class="form-error" style="display: none"></div>
+          <button
+            type="submit"
+            class="btn btn-primary btn-block btn-lg"
+            id="regBtn"
+          >
+            Create Account
+          </button>
+        </form>
+        <p class="auth-switch">
+          Already have an account? <a href="/student-login">Login here</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Recovery Codes Modal -->
+    <div id="recoveryModal" class="modal-overlay">
+      <div class="modal-card" style="max-width: 520px;">
+        <h2 style="text-align:center;"><i class='bx bx-shield-quarter' style="color: var(--accent-green); vertical-align: middle;"></i> Recovery Codes</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+          Registration successful! Below are your <strong>8 one-time recovery codes</strong>. These codes are the <strong>only way</strong> to reset your password if you forget it.
+        </p>
+        <div style="background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+          <div id="recoveryCodesList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-family: monospace; font-size: 1.05rem; color: var(--accent-green); text-align: center;"></div>
+        </div>
+        <ul style="color: var(--accent-amber); font-size: 0.82rem; margin-bottom: 1rem; padding-left: 1.2rem;">
+          <li>Save these codes securely. They will <strong>NOT</strong> be shown again.</li>
+          <li>Each code can only be used <strong>once</strong>.</li>
+          <li>If you lose all codes, contact the admin to reset your password.</li>
+        </ul>
+        <div class="modal-actions" style="flex-direction: column; gap: 0.5rem;">
+          <button id="saveCodesBtn" class="btn btn-primary btn-block" style="gap: 0.5rem; display: flex; align-items: center; justify-content: center;">
+            <i class='bx bx-download'></i> Save as Text File
+          </button>
+          <button id="closeRecoveryModal" class="btn btn-block" style="color: azure; background: var(--bg-glass); border: 1px solid var(--border-color);">
+            I have saved my codes - Continue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      function setupPasswordToggles() {
+        document.querySelectorAll(".password-toggle").forEach((toggle) => {
+          toggle.addEventListener("click", () => {
+            const input = document.getElementById(toggle.dataset.target);
+            const icon = toggle.querySelector("i");
+            const isHidden = input.type === "password";
+
+            input.type = isHidden ? "text" : "password";
+            toggle.setAttribute("aria-pressed", String(isHidden));
+            toggle.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+            icon.className = isHidden ? "bx bx-hide" : "bx bx-show";
+          });
+        });
+      }
+
+      setupPasswordToggles();
+
+      // Email auto-fill on blur
+      document.getElementById("reg-email").addEventListener("blur", async (e) => {
+        const email = e.target.value.trim();
+        const status = document.getElementById("lookupStatus");
+        if (!email || !email.includes("@")) return;
+        status.textContent = "Looking up...";
+        status.style.color = "#aaa";
+        try {
+          const result = await ApiService.lookupEmail(email);
+          if (result.found && result.data.isPreSeeded) {
+            const d = result.data;
+            const nameEl = document.getElementById("reg-name");
+            const rollEl = document.getElementById("reg-roll");
+            const subjectsEl = document.getElementById("reg-subjects");
+            if (d.name) { nameEl.value = d.name; nameEl.readOnly = true; nameEl.style.opacity = "0.7"; }
+            if (d.rollNumber) { rollEl.value = d.rollNumber; rollEl.readOnly = true; rollEl.style.opacity = "0.7"; }
+            if (d.subjectCodes && d.subjectCodes.length > 0) {
+              subjectsEl.value = d.subjectCodes.join(", ");
+              subjectsEl.readOnly = true;
+              subjectsEl.style.opacity = "0.7";
+            }
+            status.textContent = "\u2714 Account found! Fields auto-filled.";
+            status.style.color = "#00e676";
+          } else if (result.found && !result.data.isPreSeeded) {
+            status.textContent = "\u2716 Already registered. Try logging in.";
+            status.style.color = "#ff5252";
+          } else {
+            status.textContent = "New account \u2014 fill in all fields.";
+            status.style.color = "#aaa";
+          }
+        } catch (err) { status.textContent = ""; }
+      });
+
+      document
+        .getElementById("studentRegisterForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("regBtn");
+          const errorMsg = document.getElementById("errorMsg");
+          errorMsg.style.display = "none";
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const subjectsRaw = document.getElementById("reg-subjects").value;
+            const subjectCodes = subjectsRaw
+              .split(",")
+              .map((s) => s.trim().toUpperCase())
+              .filter((s) => s);
+
+            const result = await ApiService.registerStudent({
+              name: document.getElementById("reg-name").value.trim(),
+              rollNumber: document.getElementById("reg-roll").value.trim(),
+              email: document.getElementById("reg-email").value.trim(),
+              gradProgram: document.getElementById("reg-gradProgram").value,
+              year: parseInt(document.getElementById("reg-year").value),
+              department: document.getElementById("reg-dept").value.trim(),
+              subjectCodes,
+              password: document.getElementById("reg-password").value,
+            });
+
+            // Show recovery codes modal
+            const codes = result.recoveryCodes || [];
+            const listEl = document.getElementById("recoveryCodesList");
+            listEl.innerHTML = codes.map(c => `<span style="padding:0.35rem;background:rgba(255,255,255,0.05);border-radius:6px;">${c}</span>`).join("");
+
+            const modal = document.getElementById("recoveryModal");
+            modal.classList.add("show");
+
+            // Save as text file
+            document.getElementById("saveCodesBtn").onclick = () => {
+              const text = "ScanMark - Recovery Codes (Student)\n" +
+                "========================================\n" +
+                "Email: " + document.getElementById("reg-email").value.trim() + "\n" +
+                "Date: " + new Date().toLocaleString() + "\n\n" +
+                "Your 8 one-time recovery codes:\n\n" +
+                codes.map((c, i) => `  ${i + 1}. ${c}`).join("\n") + "\n\n" +
+                "IMPORTANT:\n" +
+                "- Save these codes securely. They will NOT be shown again.\n" +
+                "- Each code can only be used ONCE.\n" +
+                "- If you lose all codes, contact the admin to reset your password.\n";
+              const blob = new Blob([text], { type: "text/plain" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "scanmark-recovery-codes.txt";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            };
+
+            // Close modal and redirect
+            document.getElementById("closeRecoveryModal").onclick = () => {
+              modal.classList.remove("show");
+              window.location.href = "/student-login";
+            };
+          } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.style.display = "block";
+            btn.disabled = false;
+            btn.textContent = "Create Account";
+          }
+        });
+    </script>
+  </body>
+</html>

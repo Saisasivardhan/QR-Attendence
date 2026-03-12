@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+    <script src="/js/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/teacher-dashboard'"
+      >
+        <span class="nav-logo">⛶</span> ScanMark
+      </div>
+      <div class="nav-links">
+        <a class="nav-link" href="/teacher-dashboard"
+          ><span class="nav-icon"><i class='bx bx-broadcast'></i></span> Session</a
+        >
+        <a class="nav-link" href="/teacher-analytics"
+          ><span class="nav-icon"><i class='bx bx-bar-chart-alt-2'></i></span> Analytics</a
+        >
+        <a class="nav-link active" href="/teacher-manage-students-attendence"
+          ><span class="nav-icon"><i class='bx bx-group'></i></span> Manage Students Attendance</a
+        >
+        <a class="nav-link" href="/teacher-profile"
+          ><span class="nav-icon"><i class='bx bx-user'></i></span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon"><i class='bx bx-power-off'></i></span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        <i class='bx bx-menu'></i>
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1><i class='bx bx-edit-alt'></i> Manage Students Attendance</h1>
+        <p>View and manually edit attendance records for your subjects</p>
+      </div>
+
+      <div class="content-card">
+        <div class="manage-header">
+          <form id="gridForm" class="inline-form">
+            <div class="form-group">
+              <label for="grid-subject">Subject Code</label>
+              <select id="grid-subject" required>
+                <option value="">Select Subject</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-accent" id="loadGridBtn">
+              Load Attendance
+            </button>
+          </form>
+
+        </div>
+
+        <div id="gridResult"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="sessionsModalOverlay">
+      <div class="modal-card sessions-modal" id="sessionsModalCard"></div>
+    </div>
+
+    <div class="modal-overlay" id="deleteSessionOverlay">
+      <div class="modal-card delete-session-modal" id="deleteSessionCard"></div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "teacher"
+      ) {
+        window.location.href = "/teacher-login";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Populate Subject Dropdown ───
+      const user = ApiService.getUser();
+      const subjectSelect = document.getElementById("grid-subject");
+      if (user && user.subjectCodes) {
+        user.subjectCodes.forEach((code) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = code;
+          subjectSelect.appendChild(opt);
+        });
+      }
+
+      // ─── State ───
+      let gridData = null;        // API response
+      let originalState = {};     // { "periodId:studentId": bool }
+      let currentState = {};      // same shape, tracks live checkbox state
+      let changedCells = new Set();
+      const SESSIONS_PER_PAGE = 5;
+      const sessionsModalState = {
+        subjectCode: "",
+        page: 1,
+        total: 0,
+        totalPages: 1,
+        dateFilter: "",
+        sessions: [],
+      };
+
+      const resultDiv = document.getElementById("gridResult");
+      const sessionsModalOverlay = document.getElementById("sessionsModalOverlay");
+      const sessionsModalCard = document.getElementById("sessionsModalCard");
+      const deleteSessionOverlay = document.getElementById("deleteSessionOverlay");
+      const deleteSessionCard = document.getElementById("deleteSessionCard");
+
+      // ─── Toast Notification ───
+      function showToast(message, type) {
+        const existing = document.querySelector(".manage-toast");
+        if (existing) existing.remove();
+
+        const toast = document.createElement("div");
+        toast.className = "manage-toast manage-toast-" + type;
+        toast.innerHTML = '<i class="bx ' + (type === "success" ? "bx-check-circle" : "bx-error") + '"></i> ' + message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      function esc(str) {
+        if (str === null || str === undefined) return "";
+        const div = document.createElement("div");
+        div.textContent = String(str);
+        return div.innerHTML;
+      }
+
+      // ─── Track Changes ───
+      function updateChangeState() {
+        changedCells.clear();
+        for (const key of Object.keys(currentState)) {
+          if (currentState[key] !== originalState[key]) {
+            changedCells.add(key);
+          }
+        }
+
+        const count = changedCells.size;
+        const badge = document.getElementById("unsavedBadge");
+        const countEl = document.getElementById("changeCount");
+        const btn = document.getElementById("saveBtn");
+        if (countEl) countEl.textContent = count;
+        if (btn) btn.disabled = count === 0;
+        if (badge) badge.style.display = count > 0 ? "inline-flex" : "none";
+
+        // Highlight changed cells
+        document.querySelectorAll(".grid-cell").forEach((td) => {
+          const key = td.dataset.key;
+          if (changedCells.has(key)) {
+            td.classList.add("changed-cell");
+          } else {
+            td.classList.remove("changed-cell");
+          }
+        });
+      }
+
+      // ─── Format Column Header (date + day + IST time) ───
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      function formatColHeader(dateStr, isoTime) {
+        var datePart, day, timePart = "";
+
+        if (isoTime) {
+          const t = new Date(isoTime);
+          const istOptions = { timeZone: "Asia/Kolkata" };
+          const dd = t.toLocaleString("en-IN", { ...istOptions, day: "2-digit" });
+          const mmIdx = Number(t.toLocaleString("en-IN", { ...istOptions, month: "numeric" })) - 1;
+          const yyyy = t.toLocaleString("en-IN", { ...istOptions, year: "numeric" });
+          datePart = dd + " " + monthNames[mmIdx] + " " + yyyy;
+          day = dayNames[
+            new Date(
+              t.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+            ).getDay()
+          ];
+          timePart = t.toLocaleTimeString("en-IN", {
+            timeZone: "Asia/Kolkata",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+        } else {
+          const parts = dateStr.split("-");
+          const mmIdx = Number(parts[1]) - 1;
+          datePart = parts[2] + " " + monthNames[mmIdx] + " " + parts[0];
+          const dateObj = new Date(dateStr + "T00:00:00");
+          day = dayNames[dateObj.getDay()];
+        }
+
+        return '<span class="col-date">' + datePart + '</span>' +
+               '<span class="col-day">' + day + '</span>' +
+               (timePart ? '<span class="col-time">' + timePart + '</span>' : '');
+      }
+
+      function formatSessionDateLabel(dateStr) {
+        const date = new Date(dateStr + "T00:00:00");
+        return date.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      }
+
+      function formatSessionDayLabel(dateStr) {
+        const date = new Date(dateStr + "T00:00:00");
+        return dayNames[date.getDay()];
+      }
+
+      function formatSessionTimeLabel(isoTime) {
+        if (!isoTime) return "—";
+        return new Date(isoTime).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+      }
+
+      function formatSessionFilterDate(value) {
+        if (!value) return "";
+        return new Date(value + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      }
+
+      function getExportTimestampLabel() {
+        return new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+      }
+
+      function getSessionColumnLabel(dateStr, isoTime) {
+        const timeLabel = formatSessionTimeLabel(isoTime);
+        return formatSessionDateLabel(dateStr) + "\n" + formatSessionDayLabel(dateStr) + "\n" + timeLabel;
+      }
+
+      function applySheetCellStyle(sheet, cellAddress, style) {
+        if (!sheet[cellAddress]) return;
+        sheet[cellAddress].s = style;
+      }
+
+      function getMaxTextLength(values) {
+        return values.reduce((maxLength, value) => {
+          const text = String(value || "");
+          const longestLine = text.split("\n").reduce((lineMax, line) => Math.max(lineMax, line.length), 0);
+          return Math.max(maxLength, longestLine);
+        }, 0);
+      }
+
+      function exportAttendanceAsExcel() {
+        if (!gridData || !gridData.columns || !gridData.rows || !gridData.rows.length) {
+          showToast("Load an attendance table before exporting.", "error");
+          return;
+        }
+
+        const workbook = XLSX.utils.book_new();
+        const title = "ScanMark Attendance Report";
+        const subjectCode = gridData.subjectCode || subjectSelect.value || "Subject";
+        const generatedOn = getExportTimestampLabel();
+        const headerRow = ["Student Name", "Roll No."];
+
+        gridData.columns.forEach((col) => {
+          headerRow.push(getSessionColumnLabel(col.date, col.time));
+        });
+
+        const rows = gridData.rows.map((row) => {
+          const values = [row.name, row.rollNumber || "—"];
+          gridData.columns.forEach((col) => {
+            const key = col.periodId + ":" + row.studentId;
+            values.push(currentState[key] ? "P" : "A");
+          });
+          return values;
+        });
+
+        const sheetData = [
+          [title],
+          [],
+          ["Subject Code", subjectCode],
+          ["Generated On", generatedOn],
+          ["Total Students", gridData.rows.length],
+          ["Total Periods", gridData.columns.length],
+          [],
+          headerRow,
+          ...rows,
+        ];
+
+        const sheet = XLSX.utils.aoa_to_sheet(sheetData);
+        const lastColumnIndex = headerRow.length - 1;
+        const tableStartRowIndex = 7;
+        const tableEndRowIndex = sheetData.length - 1;
+        const borderStyle = {
+          top: { style: "thin", color: { rgb: "CBD5E1" } },
+          bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+          left: { style: "thin", color: { rgb: "CBD5E1" } },
+          right: { style: "thin", color: { rgb: "CBD5E1" } },
+        };
+        const titleStyle = {
+          font: { bold: true, sz: 16, color: { rgb: "0F172A" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          fill: { fgColor: { rgb: "DCEAFE" } },
+          border: borderStyle,
+        };
+        const labelStyle = {
+          font: { bold: true, color: { rgb: "334155" } },
+          fill: { fgColor: { rgb: "F8FAFC" } },
+          alignment: { horizontal: "left", vertical: "center" },
+          border: borderStyle,
+        };
+        const valueStyle = {
+          font: { color: { rgb: "0F172A" } },
+          alignment: { horizontal: "left", vertical: "center" },
+          border: borderStyle,
+        };
+        const headerStyle = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "1D4ED8" } },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          border: borderStyle,
+        };
+        const textCellStyle = {
+          alignment: { horizontal: "left", vertical: "center", wrapText: true },
+          border: borderStyle,
+        };
+        const presentStyle = {
+          font: { bold: true, color: { rgb: "166534" } },
+          fill: { fgColor: { rgb: "DCFCE7" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: borderStyle,
+        };
+        const absentStyle = {
+          font: { bold: true, color: { rgb: "B91C1C" } },
+          fill: { fgColor: { rgb: "FEE2E2" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: borderStyle,
+        };
+
+        const studentNameWidth = Math.min(Math.max(getMaxTextLength(gridData.rows.map((row) => row.name)) + 4, 24), 34);
+        const rollNumberWidth = Math.min(Math.max(getMaxTextLength(gridData.rows.map((row) => row.rollNumber || "—")) + 4, 14), 18);
+        const sessionColumnWidths = gridData.columns.map((col) => {
+          const label = getSessionColumnLabel(col.date, col.time);
+          return { wch: Math.min(Math.max(getMaxTextLength([label]) + 3, 16), 20) };
+        });
+
+        sheet["!cols"] = [
+          { wch: studentNameWidth },
+          { wch: rollNumberWidth },
+          ...sessionColumnWidths,
+        ];
+
+        sheet["!rows"] = [
+          { hpt: 28 },
+          { hpt: 8 },
+          { hpt: 22 },
+          { hpt: 22 },
+          { hpt: 22 },
+          { hpt: 22 },
+          { hpt: 10 },
+          { hpt: 52 },
+          ...gridData.rows.map(() => ({ hpt: 24 })),
+        ];
+
+        sheet["!merges"] = [
+          {
+            s: { r: 0, c: 0 },
+            e: { r: 0, c: lastColumnIndex },
+          },
+        ];
+
+        sheet["!autofilter"] = {
+          ref: XLSX.utils.encode_range({
+            s: { r: tableStartRowIndex, c: 0 },
+            e: { r: tableEndRowIndex, c: lastColumnIndex },
+          }),
+        };
+
+        applySheetCellStyle(sheet, "A1", titleStyle);
+
+        [2, 3, 4, 5].forEach((rowIndex) => {
+          const labelAddress = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
+          const valueAddress = XLSX.utils.encode_cell({ r: rowIndex, c: 1 });
+          applySheetCellStyle(sheet, labelAddress, labelStyle);
+          applySheetCellStyle(sheet, valueAddress, valueStyle);
+        });
+
+        for (let columnIndex = 0; columnIndex <= lastColumnIndex; columnIndex += 1) {
+          const headerAddress = XLSX.utils.encode_cell({ r: tableStartRowIndex, c: columnIndex });
+          applySheetCellStyle(sheet, headerAddress, headerStyle);
+        }
+
+        for (let rowIndex = tableStartRowIndex + 1; rowIndex <= tableEndRowIndex; rowIndex += 1) {
+          applySheetCellStyle(sheet, XLSX.utils.encode_cell({ r: rowIndex, c: 0 }), textCellStyle);
+          applySheetCellStyle(sheet, XLSX.utils.encode_cell({ r: rowIndex, c: 1 }), textCellStyle);
+
+          for (let columnIndex = 2; columnIndex <= lastColumnIndex; columnIndex += 1) {
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+            const cell = sheet[cellAddress];
+            if (!cell) continue;
+            applySheetCellStyle(sheet, cellAddress, cell.v === "P" ? presentStyle : absentStyle);
+          }
+        }
+
+        XLSX.utils.book_append_sheet(workbook, sheet, "Attendance Report");
+        XLSX.writeFile(workbook, subjectCode + "-attendance-report.xlsx");
+      }
+
+      function setModalState(overlay, isOpen) {
+        overlay.classList.toggle("show", isOpen);
+      }
+
+      function closeSessionsModal() {
+        setModalState(sessionsModalOverlay, false);
+      }
+
+      function closeDeleteSessionModal() {
+        setModalState(deleteSessionOverlay, false);
+      }
+
+      function buildSessionsPagination(currentPage, totalPages) {
+        if (totalPages <= 1) return "";
+
+        const pages = [];
+        if (totalPages <= 7) {
+          for (let i = 1; i <= totalPages; i += 1) pages.push(i);
+        } else {
+          pages.push(1);
+          if (currentPage > 3) pages.push("...");
+          let rangeStart = Math.max(2, currentPage - 1);
+          let rangeEnd = Math.min(totalPages - 1, currentPage + 1);
+          if (currentPage <= 3) rangeEnd = Math.max(rangeEnd, 4);
+          if (currentPage >= totalPages - 2) rangeStart = Math.min(rangeStart, totalPages - 3);
+          for (let i = rangeStart; i <= rangeEnd; i += 1) pages.push(i);
+          if (currentPage < totalPages - 2) pages.push("...");
+          pages.push(totalPages);
+        }
+
+        return pages.map((page) => {
+          if (page === "...") {
+            return '<span class="sessions-page-ellipsis">&hellip;</span>';
+          }
+          return '<button type="button" class="sessions-page-btn' + (page === currentPage ? ' active' : '') + '" data-action="sessions-page" data-page="' + page + '">' + page + '</button>';
+        }).join("");
+      }
+
+      function renderSessionsModalBody(isLoading, errorMessage) {
+        const hasFilter = Boolean(sessionsModalState.dateFilter);
+        const start = sessionsModalState.total === 0 ? 0 : ((sessionsModalState.page - 1) * SESSIONS_PER_PAGE) + 1;
+        const end = Math.min(sessionsModalState.total, sessionsModalState.page * SESSIONS_PER_PAGE);
+        let tableHtml = "";
+
+        if (errorMessage) {
+          tableHtml = '<div class="sessions-empty"><i class="bx bx-error-circle"></i><p>' + esc(errorMessage) + '</p></div>';
+        } else if (isLoading) {
+          tableHtml = '<div class="sessions-loading"><i class="bx bx-loader-alt bx-spin"></i><p>Loading sessions...</p></div>';
+        } else if (!sessionsModalState.sessions.length) {
+          tableHtml = '<div class="sessions-empty"><i class="bx bx-calendar-x"></i><p>No sessions found for this subject' + (hasFilter ? ' on the selected date' : '') + '.</p></div>';
+        } else {
+          tableHtml = '<div class="sessions-table-wrap"><table class="sessions-table"><thead><tr><th>Date</th><th>Session Time</th><th>Attendance</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+          sessionsModalState.sessions.forEach((session) => {
+            const statusBadge = session.active
+              ? '<span class="badge badge-amber">Active</span>'
+              : '<span class="badge badge-green">Completed</span>';
+            tableHtml += '<tr>' +
+              '<td><div class="session-date-stack"><span class="session-primary">' + esc(formatSessionDateLabel(session.date)) + '</span><span class="session-secondary">' + esc(formatSessionDayLabel(session.date)) + '</span></div></td>' +
+              '<td><div class="session-time-stack"><span class="session-primary">' + esc(formatSessionTimeLabel(session.startTime)) + '</span><span class="session-secondary">Ends ' + esc(formatSessionTimeLabel(session.endTime)) + '</span></div></td>' +
+              '<td><span class="badge badge-blue">' + Number(session.attendanceCount || 0) + ' present</span></td>' +
+              '<td>' + statusBadge + '</td>' +
+              '<td><button type="button" class="session-delete-btn" data-action="prompt-delete-session" data-session-id="' + esc(session.id) + '"' + (session.active ? ' disabled' : '') + '><i class="bx bx-trash"></i> Delete</button></td>' +
+              '</tr>';
+          });
+          tableHtml += '</tbody></table></div>';
+        }
+
+        const paginationHtml = sessionsModalState.totalPages > 1
+          ? '<div class="sessions-pagination"><div class="sessions-pagination-meta">Showing ' + start + '-' + end + ' of ' + sessionsModalState.total + ' sessions</div><div class="sessions-pagination-controls"><button type="button" class="sessions-page-btn" data-action="sessions-page" data-page="' + (sessionsModalState.page - 1) + '"' + (sessionsModalState.page === 1 ? ' disabled' : '') + '>Prev</button>' + buildSessionsPagination(sessionsModalState.page, sessionsModalState.totalPages) + '<button type="button" class="sessions-page-btn" data-action="sessions-page" data-page="' + (sessionsModalState.page + 1) + '"' + (sessionsModalState.page === sessionsModalState.totalPages ? ' disabled' : '') + '>Next</button></div></div>'
+          : '';
+
+        sessionsModalCard.innerHTML =
+          '<div class="sessions-modal-header">' +
+          '<div><h2><i class="bx bx-calendar-event"></i> Subject Sessions</h2><p class="sessions-modal-subtitle">Review all attendance periods for <strong>' + esc(sessionsModalState.subjectCode) + '</strong> and remove an incorrect session if needed.</p></div>' +
+          '<button type="button" class="sessions-modal-close" data-action="close-sessions-modal" aria-label="Close session modal"><i class="bx bx-x"></i></button>' +
+          '</div>' +
+          '<div class="sessions-toolbar">' +
+          '<div class="sessions-toolbar-meta"><span class="sessions-count-badge"><i class="bx bx-layer"></i> ' + sessionsModalState.total + ' total session' + (sessionsModalState.total === 1 ? '' : 's') + '</span></div>' +
+          '<div class="sessions-date-controls">' +
+          '<div class="sessions-date-tag' + (hasFilter ? ' show' : '') + '" id="sessionsDateTag"><span>' + esc(hasFilter ? formatSessionFilterDate(sessionsModalState.dateFilter) : '') + '</span><button type="button" class="sessions-date-clear" id="sessionsDateClearBtn" aria-label="Clear date filter"><i class="bx bx-x"></i></button></div>' +
+          '<button type="button" class="sessions-date-trigger' + (hasFilter ? ' active' : '') + '" id="sessionsDateBtn" aria-label="Filter sessions by date" title="Filter by date"><i class="bx bx-calendar"></i></button>' +
+          '<input type="date" id="sessionsDateInput" class="sessions-date-input" value="' + esc(sessionsModalState.dateFilter) + '" />' +
+          '</div>' +
+          '</div>' +
+          tableHtml +
+          paginationHtml;
+      }
+
+      async function fetchSessionsModalData() {
+        renderSessionsModalBody(true);
+
+        try {
+          const result = await ApiService.getTeacherSubjectSessions(sessionsModalState.subjectCode, {
+            page: sessionsModalState.page,
+            limit: SESSIONS_PER_PAGE,
+            date: sessionsModalState.dateFilter,
+          });
+
+          sessionsModalState.total = result.total || 0;
+          sessionsModalState.totalPages = result.totalPages || 1;
+          if (sessionsModalState.page > sessionsModalState.totalPages) {
+            sessionsModalState.page = sessionsModalState.totalPages;
+            return fetchSessionsModalData();
+          }
+          sessionsModalState.sessions = result.sessions || [];
+          renderSessionsModalBody(false);
+        } catch (error) {
+          sessionsModalState.sessions = [];
+          sessionsModalState.total = 0;
+          sessionsModalState.totalPages = 1;
+          renderSessionsModalBody(false, error.message);
+        }
+      }
+
+      function openSessionsModal(subjectCode) {
+        sessionsModalState.subjectCode = subjectCode;
+        sessionsModalState.page = 1;
+        sessionsModalState.total = 0;
+        sessionsModalState.totalPages = 1;
+        sessionsModalState.dateFilter = "";
+        sessionsModalState.sessions = [];
+        setModalState(sessionsModalOverlay, true);
+        fetchSessionsModalData();
+      }
+
+      function openDeleteSessionModal(session) {
+        deleteSessionCard.innerHTML =
+          '<h2><i class="bx bx-error-circle"></i> Delete Session</h2>' +
+          '<p>This will permanently remove the attendance session for <strong>' + esc(sessionsModalState.subjectCode) + '</strong>.</p>' +
+          '<div class="delete-session-warning"><strong>Before you continue:</strong><ul class="delete-session-list"><li>All attendance entries marked in this session will be deleted permanently.</li><li>This session will disappear from the attendance grid, teacher analytics, and summary counts.</li><li>The deleted time slot is not recreated automatically later, so keep this only for incorrect or duplicate sessions.</li><li>You should save any pending grid changes before deleting a session for this subject.</li></ul></div>' +
+          '<p><strong>Session:</strong> ' + esc(formatSessionDateLabel(session.date)) + ' at ' + esc(formatSessionTimeLabel(session.startTime)) + '</p>' +
+          '<div class="modal-actions"><button type="button" class="btn btn-secondary" data-action="close-delete-session-modal">Cancel</button><button type="button" class="btn btn-danger" data-action="confirm-delete-session" data-session-id="' + esc(session.id) + '"><i class="bx bx-trash"></i> Delete Session</button></div>';
+        setModalState(deleteSessionOverlay, true);
+      }
+
+      async function loadAttendanceGrid(subjectCode) {
+        const btn = document.getElementById("loadGridBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          const result = await ApiService.getAttendanceGrid(subjectCode);
+          gridData = result;
+
+          if (!result.rows || result.rows.length === 0) {
+            resultDiv.innerHTML =
+              '<div class="empty-state fade-in">' +
+              '<div class="empty-icon"><i class="bx bx-clipboard"></i></div>' +
+              '<h3>No Data Yet</h3>' +
+              '<p>No students registered for ' + subjectCode + '.</p>' +
+              '</div>';
+            return;
+          }
+
+          if (!result.columns || result.columns.length === 0) {
+            resultDiv.innerHTML =
+              '<div class="empty-state fade-in">' +
+              '<div class="empty-icon"><i class="bx bx-calendar-x"></i></div>' +
+              '<h3>No Periods Yet</h3>' +
+              '<p>No attendance Periods have been conducted for ' + subjectCode + ' yet.</p>' +
+              '</div>';
+            return;
+          }
+
+          originalState = {};
+          currentState = {};
+          changedCells.clear();
+
+          let html =
+            '<div class="analytics-summary summary-with-save fade-in">' +
+            '<button type="button" class="summary-stat summary-stat-button" id="viewSessionsBtn">' +
+            '<span class="summary-num">' + result.columns.length + '</span>' +
+            '<span class="summary-label">Total Periods Taken</span>' +
+            '<span class="summary-stat-action"><i class="bx bx-calendar-event"></i> View Sessions</span>' +
+            '</button>' +
+            '<div class="summary-stat">' +
+            '<span class="summary-num">' + result.rows.length + '</span>' +
+            '<span class="summary-label">Total Students</span>' +
+            '</div>' +
+            '<div class="summary-save-area">' +
+            '<button type="button" class="btn-save btn-export" id="exportExcelBtn">' +
+            '<i class="bx bx-spreadsheet"></i> Export as Excel Sheet' +
+            '</button>' +
+            '<span id="unsavedBadge" class="unsaved-badge" style="display:none;">' +
+            '<i class="bx bx-error-circle"></i> <span id="changeCount">0</span> changes' +
+            '</span>' +
+            '<button type="button" class="btn-save" id="saveBtn" disabled>' +
+            '<i class="bx bx-save"></i> Save Changes' +
+            '</button>' +
+            '</div>' +
+            '</div>';
+
+          html += '<div class="grid-table-container fade-in"><table class="grid-table">';
+          html += '<thead><tr>';
+          html += '<th class="sticky-col">Student Name</th>';
+          html += '<th class="sticky-col-2">Roll No.</th>';
+
+          result.columns.forEach((col) => {
+            html += '<th>' + formatColHeader(col.date, col.time) + '</th>';
+          });
+          html += '</tr></thead><tbody>';
+
+          result.rows.forEach((row, rowIdx) => {
+            html += '<tr class="fade-in" style="animation-delay: ' + (rowIdx * 20) + 'ms">';
+            html += '<td class="sticky-col">' + row.name + '</td>';
+            html += '<td class="sticky-col-2"><span class="badge badge-blue">' + (row.rollNumber || '—') + '</span></td>';
+
+            result.columns.forEach((col) => {
+              const periodId = col.periodId;
+              const studentId = row.studentId;
+              const key = periodId + ':' + studentId;
+              const present = row.attendance[periodId] || false;
+
+              originalState[key] = present;
+              currentState[key] = present;
+
+              html +=
+                '<td class="grid-cell ' + (present ? 'cell-present' : 'cell-absent') + '" data-key="' + key + '" data-present="' + (present ? '1' : '0') + '">' +
+                '<span class="att-label">' + (present ? 'P' : 'A') + '</span>' +
+                '</td>';
+            });
+
+            html += '</tr>';
+          });
+
+          html += '</tbody></table></div>';
+          resultDiv.innerHTML = html;
+
+          document.querySelectorAll('.grid-cell[data-key]').forEach((td) => {
+            td.addEventListener('click', function () {
+              const key = this.dataset.key;
+              const isPresent = this.dataset.present === '1';
+              const newState = !isPresent;
+              currentState[key] = newState;
+              this.dataset.present = newState ? '1' : '0';
+              this.classList.toggle('cell-present', newState);
+              this.classList.toggle('cell-absent', !newState);
+              this.querySelector('.att-label').textContent = newState ? 'P' : 'A';
+              updateChangeState();
+            });
+          });
+
+          updateChangeState();
+        } catch (error) {
+          resultDiv.innerHTML =
+            '<div class="empty-state"><p class="error-text">' + error.message + '</p></div>';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Load Attendance';
+      }
+
+      // ─── Load Grid ───
+      document.getElementById("gridForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const subjectCode = subjectSelect.value;
+        if (!subjectCode) return;
+        await loadAttendanceGrid(subjectCode);
+      });
+
+      // ─── Save Changes (event delegation since button is dynamic) ───
+      document.addEventListener("click", async (e) => {
+        const exportBtn = e.target.closest("#exportExcelBtn");
+        if (exportBtn) {
+          exportAttendanceAsExcel();
+          return;
+        }
+
+        const btn = e.target.closest("#saveBtn");
+        if (!btn) return;
+        if (changedCells.size === 0 || !gridData) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+        try {
+          // Build the updates map: { periodId: [studentIds who are present] }
+          const affectedPeriodIds = new Set();
+          changedCells.forEach((key) => {
+            affectedPeriodIds.add(key.split(":")[0]);
+          });
+
+          const updates = {};
+          affectedPeriodIds.forEach((periodId) => {
+            const presentStudents = [];
+            gridData.rows.forEach((row) => {
+              const key = periodId + ":" + row.studentId;
+              if (currentState[key]) {
+                presentStudents.push(row.studentId);
+              }
+            });
+            updates[periodId] = presentStudents;
+          });
+
+          await ApiService.updateAttendanceGrid(gridData.subjectCode, updates);
+
+          // Update original state to match current
+          for (const key of Object.keys(currentState)) {
+            originalState[key] = currentState[key];
+          }
+          updateChangeState();
+
+          showToast("Attendance saved successfully!", "success");
+        } catch (error) {
+          showToast("Failed to save: " + error.message, "error");
+        }
+
+        btn.disabled = changedCells.size === 0;
+        btn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+      });
+
+      document.addEventListener("click", async (e) => {
+        const viewSessionsBtn = e.target.closest("#viewSessionsBtn");
+        if (viewSessionsBtn && gridData?.subjectCode) {
+          openSessionsModal(gridData.subjectCode);
+          return;
+        }
+
+        if (e.target.closest('[data-action="close-sessions-modal"]')) {
+          closeSessionsModal();
+          return;
+        }
+
+        if (e.target.closest('[data-action="close-delete-session-modal"]')) {
+          closeDeleteSessionModal();
+          return;
+        }
+
+        const sessionsDateBtn = e.target.closest("#sessionsDateBtn");
+        if (sessionsDateBtn) {
+          const input = document.getElementById("sessionsDateInput");
+          if (input && typeof input.showPicker === "function") {
+            input.showPicker();
+          } else if (input) {
+            input.focus();
+            input.click();
+          }
+          return;
+        }
+
+        if (e.target.closest("#sessionsDateClearBtn")) {
+          sessionsModalState.dateFilter = "";
+          sessionsModalState.page = 1;
+          fetchSessionsModalData();
+          return;
+        }
+
+        const pageBtn = e.target.closest('[data-action="sessions-page"]');
+        if (pageBtn) {
+          const nextPage = Number(pageBtn.dataset.page);
+          if (!nextPage || pageBtn.disabled || nextPage === sessionsModalState.page) return;
+          sessionsModalState.page = nextPage;
+          fetchSessionsModalData();
+          return;
+        }
+
+        const promptDeleteBtn = e.target.closest('[data-action="prompt-delete-session"]');
+        if (promptDeleteBtn) {
+          if (gridData?.subjectCode === sessionsModalState.subjectCode && changedCells.size > 0) {
+            showToast("Save your attendance edits before deleting a session.", "error");
+            return;
+          }
+
+          const session = sessionsModalState.sessions.find((item) => String(item.id) === promptDeleteBtn.dataset.sessionId);
+          if (session) openDeleteSessionModal(session);
+          return;
+        }
+
+        const confirmDeleteBtn = e.target.closest('[data-action="confirm-delete-session"]');
+        if (confirmDeleteBtn) {
+          confirmDeleteBtn.disabled = true;
+          confirmDeleteBtn.innerHTML = '<span class="spinner"></span> Deleting...';
+
+          try {
+            await ApiService.deleteTeacherSession(sessionsModalState.subjectCode, confirmDeleteBtn.dataset.sessionId);
+            if (sessionsModalState.sessions.length === 1 && sessionsModalState.page > 1) {
+              sessionsModalState.page -= 1;
+            }
+            closeDeleteSessionModal();
+            await fetchSessionsModalData();
+            if (subjectSelect.value === sessionsModalState.subjectCode) {
+              await loadAttendanceGrid(sessionsModalState.subjectCode);
+            }
+            showToast("Session deleted successfully.", "success");
+          } catch (error) {
+            showToast(error.message, "error");
+            confirmDeleteBtn.disabled = false;
+            confirmDeleteBtn.innerHTML = '<i class="bx bx-trash"></i> Delete Session';
+          }
+        }
+      });
+
+      document.addEventListener("change", (e) => {
+        if (e.target.id === "sessionsDateInput") {
+          sessionsModalState.dateFilter = e.target.value;
+          sessionsModalState.page = 1;
+          fetchSessionsModalData();
+        }
+      });
+
+      [sessionsModalOverlay, deleteSessionOverlay].forEach((overlay) => {
+        overlay.addEventListener("click", (e) => {
+          if (e.target !== overlay) return;
+          if (overlay === sessionsModalOverlay) closeSessionsModal();
+          if (overlay === deleteSessionOverlay) closeDeleteSessionModal();
+        });
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (deleteSessionOverlay.classList.contains("show")) {
+          closeDeleteSessionModal();
+          return;
+        }
+        if (sessionsModalOverlay.classList.contains("show")) {
+          closeSessionsModal();
+        }
+      });
+    </script>
+  </body>
+</html>

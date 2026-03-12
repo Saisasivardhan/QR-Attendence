@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-container auth-container-sm">
+        <a href="/" class="back-btn"><i class='bx bx-arrow-back'></i> Back to Home</a>
+        <div class="auth-header">
+          <div class="auth-icon"><i class='bx bxs-shield-alt-2'></i></div>
+          <h1>Admin Login</h1>
+          <p>Authorized personnel only</p>
+        </div>
+        <form id="adminLoginForm" class="auth-form">
+          <div class="form-group">
+            <label for="admin-email">Admin Email</label>
+            <input
+              type="email"
+              id="admin-email"
+              placeholder="admin@nitw.ac.in"
+              required
+              autocomplete="username"
+            />
+          </div>
+          <div class="form-group">
+            <label for="admin-password">Password</label>
+            <div class="password-input">
+              <input
+                type="password"
+                id="admin-password"
+                placeholder="Enter admin password"
+                required
+                autocomplete="current-password"
+              />
+              <button type="button" class="password-toggle" data-target="admin-password" aria-label="Show password" aria-pressed="false">
+                <i class='bx bx-show'></i>
+              </button>
+            </div>
+          </div>
+          <div id="errorMsg" class="form-error" style="display: none"></div>
+          <button
+            type="submit"
+            class="btn btn-danger btn-block btn-lg"
+            id="loginBtn"
+          >
+            Sign In
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // Password toggle
+      document.querySelector(".password-toggle").addEventListener("click", function () {
+        const input = document.getElementById(this.dataset.target);
+        const icon = this.querySelector("i");
+        const isHidden = input.type === "password";
+        input.type = isHidden ? "text" : "password";
+        this.setAttribute("aria-pressed", String(isHidden));
+        this.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+        icon.className = isHidden ? "bx bx-hide" : "bx bx-show";
+      });
+
+      document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("loginBtn");
+        const errorMsg = document.getElementById("errorMsg");
+        errorMsg.style.display = "none";
+
+        const email = document.getElementById("admin-email").value.trim();
+        const password = document.getElementById("admin-password").value;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          const res = await fetch("/api/auth/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) throw new Error(data.message || "Login failed.");
+
+          ApiService.setAuth(data.token, data.user);
+          window.location.href = "/admin-dashboard";
+        } catch (err) {
+          errorMsg.textContent = err.message;
+          errorMsg.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = "Sign In";
+        }
+      });
+    </script>
+  </body>
+</html>

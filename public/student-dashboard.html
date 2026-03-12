@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <!-- Fullscreen Scanner Page -->
+    <div class="scanner-page">
+      <!-- Fullscreen Camera Area -->
+      <div class="scanner-fullscreen" id="scannerViewport">
+        <video id="scannerVideo" autoplay muted playsinline></video>
+        <canvas id="scannerCanvas"></canvas>
+
+        <!-- QR Frame corners + Vertical Zoom Slider -->
+        <div class="qr-frame-container">
+          <div class="qr-frame" id="qrFrame">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+            <div class="scan-line"></div>
+          </div>
+          <div class="zoom-slider-vertical" id="zoomContainer" style="display:none">
+            <span class="zoom-label">10x</span>
+            <input type="range" id="zoomSlider" class="zoom-slider" min="1" max="10" step="0.1" value="1" orient="vertical" />
+            <span class="zoom-label">1x</span>
+            <span class="zoom-value" id="zoomValue">1.0x</span>
+          </div>
+        </div>
+
+        <!-- Top bar -->
+        <div class="scanner-top-bar">
+          <span class="scanner-title">Scan QR Code</span>
+        </div>
+
+        <!-- Status above frame -->
+        <div class="scanner-status-bar">
+          <div class="scanner-status-pill" id="scannerStatus">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Tap Start to scan</span>
+          </div>
+        </div>
+
+        <!-- Instruction below frame -->
+        <div class="scanner-instruction">
+          Point your camera at the QR code<br/>displayed by your teacher
+        </div>
+
+        <!-- Start / Stop button -->
+        <div class="scanner-action-area">
+          <button class="btn-scanner btn-scanner-start" id="startScanBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="7" height="7" rx="1"/>
+              <rect x="15" y="2" width="7" height="7" rx="1"/>
+              <rect x="2" y="15" width="7" height="7" rx="1"/>
+              <rect x="15" y="15" width="4" height="4" rx="0.5"/>
+              <path d="M22 15h-3v3"/><path d="M19 22v-4"/>
+            </svg>
+            Start Scanning
+          </button>
+          <button class="btn-scanner btn-scanner-stop" id="stopScanBtn" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            Stop Scanner
+          </button>
+        </div>
+
+        <!-- Scan result overlay -->
+        <div id="scanResult" class="scan-result-overlay" style="display:none"></div>
+      </div>
+
+      <!-- Bottom Tab Bar -->
+      <nav class="bottom-tabs">
+        <a href="/student-dashboard" class="tab-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span class="tab-label">Scan</span>
+        </a>
+        <a href="/student-attendance" class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h18v18H3z" />
+            <path d="M3 9h18" />
+            <path d="M9 3v18" />
+          </svg>
+          <span class="tab-label">Attendance</span>
+        </a>
+        <a href="/student-profile" class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 21v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1"/>
+          </svg>
+          <span class="tab-label">Profile</span>
+        </a>
+        <button class="tab-item" id="logoutBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span class="tab-label">Logout</span>
+        </button>
+      </nav>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/scanner.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Scanner Logic ───
+      let currentScanner = null;
+      let scanCooldown = false;
+
+      document
+        .getElementById("startScanBtn")
+        .addEventListener("click", startScanning);
+      document
+        .getElementById("stopScanBtn")
+        .addEventListener("click", stopScanning);
+
+      async function startScanning() {
+        const video = document.getElementById("scannerVideo");
+        const canvas = document.getElementById("scannerCanvas");
+
+        document.getElementById("startScanBtn").style.display = "none";
+        document.getElementById("stopScanBtn").style.display = "inline-flex";
+        document.getElementById("scanResult").style.display = "none";
+        document.getElementById("qrFrame").classList.add("scanning");
+
+        currentScanner = new QRScanner(video, canvas, handleQRScan);
+
+        try {
+          await currentScanner.start();
+          document.getElementById("statusDot").className = "status-dot active";
+          document.getElementById("statusText").textContent = "Scanning for QR codes...";
+
+          // Show zoom slider if camera supports zoom
+          const zoomContainer = document.getElementById("zoomContainer");
+          const zoomSlider = document.getElementById("zoomSlider");
+          const zoomValue = document.getElementById("zoomValue");
+
+          if (currentScanner.zoomSupported) {
+            const min = currentScanner.zoomMin;
+            const max = Math.min(currentScanner.zoomMax, 10);
+            zoomSlider.min = min;
+            zoomSlider.max = max;
+            zoomSlider.step = currentScanner.zoomStep;
+            zoomSlider.value = min;
+            zoomValue.textContent = parseFloat(min).toFixed(1) + "x";
+            zoomContainer.style.display = "flex";
+          } else {
+            zoomContainer.style.display = "none";
+          }
+        } catch (error) {
+          document.getElementById("statusDot").className = "status-dot error";
+          document.getElementById("statusText").textContent = error.message;
+        }
+      }
+
+      function stopScanning() {
+        if (currentScanner) {
+          currentScanner.stop();
+          currentScanner = null;
+        }
+        document.getElementById("startScanBtn").style.display = "inline-flex";
+        document.getElementById("stopScanBtn").style.display = "none";
+        document.getElementById("qrFrame").classList.remove("scanning");
+        document.getElementById("statusDot").className = "status-dot";
+        document.getElementById("statusText").textContent = "Scanner stopped";
+        document.getElementById("zoomContainer").style.display = "none";
+        document.getElementById("zoomSlider").value = 1;
+        document.getElementById("zoomValue").textContent = "1.0x";
+      }
+
+      // ─── Zoom Slider ───
+      document.getElementById("zoomSlider").addEventListener("input", function () {
+        const val = parseFloat(this.value);
+        document.getElementById("zoomValue").textContent = val.toFixed(1) + "x";
+        if (currentScanner) {
+          currentScanner.setZoom(val);
+        }
+      });
+
+      async function handleQRScan(data) {
+        if (scanCooldown) return;
+        scanCooldown = true;
+
+        document.getElementById("statusDot").className = "status-dot success";
+        document.getElementById("statusText").textContent = "QR detected! Verifying...";
+
+        try {
+          const result = await ApiService.scanAttendance(data);
+
+          document.getElementById("scanResult").style.display = "flex";
+          document.getElementById("scanResult").innerHTML =
+            '<div class="result-card result-success">' +
+            '<div class="result-icon">&#10003;</div>' +
+            "<h3>Attendance Marked!</h3>" +
+            "<p>" + result.message + "</p>" +
+            '<div class="result-details">' +
+            "<span>Subject: <strong>" + result.attendance.subjectCode + "</strong></span>" +
+            "<span>Date: <strong>" + result.attendance.date + "</strong></span>" +
+            "</div>" +
+            '<button class="result-dismiss-btn">Done</button>' +
+            "</div>";
+
+          stopScanning();
+        } catch (error) {
+          document.getElementById("scanResult").style.display = "flex";
+          document.getElementById("scanResult").innerHTML =
+            '<div class="result-card result-error">' +
+            '<div class="result-icon">&#10007;</div>' +
+            "<h3>Scan Failed</h3>" +
+            "<p>" + error.message + "</p>" +
+            '<button class="result-dismiss-btn">Dismiss</button>' +
+            "</div>";
+        }
+
+        setTimeout(() => {
+          scanCooldown = false;
+        }, 3000);
+      }
+
+      function dismissResult() {
+        document.getElementById("scanResult").style.display = "none";
+      }
+
+      // Event delegation for dismiss buttons (inline onclick may not fire on all browsers)
+      document.getElementById("scanResult").addEventListener("click", function (e) {
+        if (e.target.closest(".result-dismiss-btn")) {
+          dismissResult();
+        }
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        if (currentScanner) currentScanner.stop();
+      });
+    </script>
+  </body>
+</html>

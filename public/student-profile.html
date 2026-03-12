@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="student-page">
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1><i class='bx bx-user'></i> My Profile</h1>
+        <div class="header-actions">
+          <button class="btn btn-outline btn-sm" id="changePasswordBtn">
+            <i class='bx bx-lock-alt'></i> Change Password
+          </button>
+          <button class="btn btn-outline btn-sm" id="editProfileBtn">
+            <i class='bx bx-edit'></i> Edit
+          </button>
+        </div>
+      </div>
+
+      <div class="content-card" id="profileContent">
+        <div class="profile-loading">Loading profile...</div>
+      </div>
+
+      <div id="toastContainer"></div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal-overlay" id="passwordModal">
+      <div class="modal-card">
+        <h2><i class='bx bx-lock-alt'></i> Change Password</h2>
+        <form id="changePasswordForm" class="auth-form" style="gap:1rem;">
+          <div class="form-group">
+            <label for="new-password">New Password</label>
+            <div class="password-input">
+              <input
+                type="password"
+                id="new-password"
+                placeholder="Minimum 6 characters"
+                minlength="6"
+                required
+                autocomplete="new-password"
+              />
+              <button type="button" class="password-toggle" data-target="new-password" aria-label="Show password" aria-pressed="false">
+                <i class='bx bx-show'></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="confirm-password">Confirm New Password</label>
+            <div class="password-input">
+              <input
+                type="password"
+                id="confirm-password"
+                placeholder="Re-enter new password"
+                minlength="6"
+                required
+                autocomplete="new-password"
+              />
+              <button type="button" class="password-toggle" data-target="confirm-password" aria-label="Show password" aria-pressed="false">
+                <i class='bx bx-show'></i>
+              </button>
+            </div>
+          </div>
+          <div id="passwordError" class="form-error" style="display:none;"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" id="cancelPasswordBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="savePasswordBtn">Change Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="bottom-tabs">
+      <a href="/student-dashboard" class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span class="tab-label">Scan</span>
+      </a>
+      <a href="/student-attendance" class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3h18v18H3z" />
+          <path d="M3 9h18" />
+          <path d="M9 3v18" />
+        </svg>
+        <span class="tab-label">Attendance</span>
+      </a>
+      <a href="/student-profile" class="tab-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 21v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1"/>
+        </svg>
+        <span class="tab-label">Profile</span>
+      </a>
+      <button class="tab-item" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span class="tab-label">Logout</span>
+      </button>
+    </nav>
+
+    <script src="/js/api.js"></script>
+    <script>
+      function setupPasswordToggles() {
+        document.querySelectorAll(".password-toggle").forEach((toggle) => {
+          toggle.addEventListener("click", () => {
+            const input = document.getElementById(toggle.dataset.target);
+            const icon = toggle.querySelector("i");
+            const isHidden = input.type === "password";
+
+            input.type = isHidden ? "text" : "password";
+            toggle.setAttribute("aria-pressed", String(isHidden));
+            toggle.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+            icon.className = isHidden ? "bx bx-hide" : "bx bx-show";
+          });
+        });
+      }
+
+      setupPasswordToggles();
+
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Toast Helper ───
+      function showToast(message, type) {
+        var existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        var toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.innerHTML =
+          '<div class="toast-content"><span class="toast-icon">' +
+          (type === "success" ? "&#10003;" : "&#10007;") +
+          '</span><span class="toast-message">' +
+          message +
+          "</span></div>";
+        document.body.appendChild(toast);
+        requestAnimationFrame(function () { toast.classList.add("show"); });
+        setTimeout(function () {
+          toast.classList.remove("show");
+          setTimeout(function () { toast.remove(); }, 300);
+        }, 4000);
+      }
+
+      // ─── Profile State ───
+      var isEditing = false;
+      var profileData = null;
+
+      var editBtn = document.getElementById("editProfileBtn");
+      var content = document.getElementById("profileContent");
+
+      // ─── Load Profile ───
+      async function loadProfile() {
+        try {
+          var result = await ApiService.getStudentProfile();
+          profileData = result.profile;
+          renderProfileView();
+        } catch (error) {
+          content.innerHTML =
+            '<div class="empty-state"><p class="error-text">' +
+            error.message +
+            "</p></div>";
+        }
+      }
+
+      // ─── Render View Mode ───
+      function renderProfileView() {
+        var p = profileData;
+        var avatar = p.name ? p.name.charAt(0).toUpperCase() : "S";
+        var subjects = (p.subjectCodes && p.subjectCodes.length > 0)
+          ? p.subjectCodes.map(function (s) {
+              return '<span class="badge badge-blue">' + s + "</span>";
+            }).join(" ")
+          : '<span style="color:var(--text-muted)">None</span>';
+
+        content.innerHTML =
+          '<div class="profile-view fade-in">' +
+            '<div class="profile-header-card">' +
+              '<div class="profile-avatar-lg">' + avatar + "</div>" +
+              '<span class="profile-name">' + p.name + "</span>" +
+              '<span class="profile-roll"><span class="badge badge-blue">' + p.rollNumber + "</span></span>" +
+            "</div>" +
+            '<div class="profile-fields">' +
+              '<div class="profile-section-label"><i class="bx bx-envelope"></i> Account</div>' +
+              '<div class="profile-field">' +
+                '<span class="field-label">Email</span>' +
+                '<span class="field-value">' + p.email + "</span>" +
+              "</div>" +
+              '<div class="profile-section-label"><i class="bx bx-book-reader"></i> Academic Info</div>' +
+              '<div class="profile-field">' +
+                '<span class="field-label">Department</span>' +
+                '<span class="field-value">' + p.department + "</span>" +
+              "</div>" +
+              '<div class="profile-field">' +
+                '<span class="field-label">Program</span>' +
+                '<span class="field-value"><span class="badge badge-purple">' + p.gradProgram + "</span></span>" +
+              "</div>" +
+              '<div class="profile-field">' +
+                '<span class="field-label">Year</span>' +
+                '<span class="field-value">' + p.year + "</span>" +
+              "</div>" +
+              '<div class="profile-field">' +
+                '<span class="field-label">Subjects</span>' +
+                '<span class="field-value" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;">' + subjects + "</span>" +
+              "</div>" +
+            "</div>" +
+          "</div>";
+      }
+
+      // ─── Render Edit Mode ───
+      function renderProfileEdit() {
+        var p = profileData;
+        content.innerHTML =
+          '<form id="editForm" class="profile-edit fade-in">' +
+          '<div class="form-group disabled-field">' +
+          '<label><i class="bx bx-user"></i> Name <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' + (p.name || "") + '" disabled>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label><i class="bx bx-envelope"></i> Email <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="email" value="' + (p.email || "") + '" disabled>' +
+          "</div>" +
+          '<div class="form-group">' +
+          '<label><i class="bx bx-calendar"></i> Year of Study</label>' +
+          '<input type="number" id="edit-year" value="' + (p.year || 1) + '" min="1" max="6" required>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label><i class="bx bx-id-card"></i> Roll Number <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' + (p.rollNumber || "") + '" disabled>' +
+          "</div>" +
+          '<div class="form-group disabled-field">' +
+          '<label><i class="bx bx-building-house"></i> Department <span class="immutable-badge">Cannot be changed</span></label>' +
+          '<input type="text" value="' + (p.department || "") + '" disabled>' +
+          "</div>" +
+          '<button type="submit" class="btn btn-primary btn-lg" id="saveBtn"><i class="bx bx-save"></i> Save Changes</button>' +
+          "</form>";
+
+        document
+          .getElementById("editForm")
+          .addEventListener("submit", handleSave);
+      }
+
+      // ─── Save Profile ───
+      async function handleSave(e) {
+        e.preventDefault();
+        var saveBtn = document.getElementById("saveBtn");
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          var data = {
+            year: parseInt(document.getElementById("edit-year").value),
+          };
+
+          var result = await ApiService.updateStudentProfile(data);
+          profileData = result.profile;
+
+          var currentUser = ApiService.getUser();
+          ApiService.setAuth(ApiService.getToken(), {
+            ...currentUser,
+            ...data,
+          });
+
+          isEditing = false;
+          editBtn.innerHTML = '<i class="bx bx-edit"></i> Edit';
+          renderProfileView();
+          showToast("Profile updated successfully!", "success");
+        } catch (error) {
+          showToast(error.message, "error");
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+        }
+      }
+
+      // ─── Toggle Edit ───
+      editBtn.addEventListener("click", function () {
+        isEditing = !isEditing;
+        if (isEditing) {
+          editBtn.innerHTML = '<i class="bx bx-x"></i> Cancel';
+          renderProfileEdit();
+        } else {
+          editBtn.innerHTML = '<i class="bx bx-edit"></i> Edit';
+          renderProfileView();
+        }
+      });
+
+      // ─── Change Password Modal ───
+      var modal = document.getElementById("passwordModal");
+      var form = document.getElementById("changePasswordForm");
+      var errEl = document.getElementById("passwordError");
+
+      function openModal() {
+        form.reset();
+        errEl.style.display = "none";
+        modal.style.display = "flex";
+        requestAnimationFrame(function () { modal.classList.add("show"); });
+      }
+
+      function closeModal() {
+        modal.classList.remove("show");
+        setTimeout(function () { modal.style.display = "none"; }, 250);
+      }
+
+      document.getElementById("changePasswordBtn").addEventListener("click", openModal);
+      document.getElementById("cancelPasswordBtn").addEventListener("click", closeModal);
+
+      modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeModal();
+      });
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        errEl.style.display = "none";
+
+        var newPw = document.getElementById("new-password").value;
+        var confirmPw = document.getElementById("confirm-password").value;
+
+        if (newPw !== confirmPw) {
+          errEl.textContent = "Passwords do not match.";
+          errEl.style.display = "block";
+          return;
+        }
+
+        var btn = document.getElementById("savePasswordBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+          await ApiService.changeStudentPassword({ newPassword: newPw });
+          closeModal();
+          showToast("Password changed successfully!", "success");
+        } catch (error) {
+          errEl.textContent = error.message;
+          errEl.style.display = "block";
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Change Password";
+        }
+      });
+
+      // ─── Init ───
+      loadProfile();
+    </script>
+  </body>
+</html>

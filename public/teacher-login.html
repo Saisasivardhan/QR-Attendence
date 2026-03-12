@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-container auth-container-sm">
+        <a href="/" class="back-btn"><i class='bx bx-arrow-back'></i> Back to Home</a>
+        <div class="auth-header">
+          <div class="auth-icon"><i class='bx bxs-chalkboard'></i></div>
+          <h1>Teacher Login</h1>
+          <p>Sign in with your institute email</p>
+        </div>
+        <form id="teacherLoginForm" class="auth-form">
+          <div class="form-group">
+            <label for="login-email">Institute Email</label>
+            <input
+              type="email"
+              id="login-email"
+              placeholder="professor@university.edu"
+              required
+              autocomplete="username"
+            />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <div class="password-input">
+              <input
+                type="password"
+                id="login-password"
+                placeholder="Enter your password"
+                required
+                autocomplete="current-password"
+              />
+              <button type="button" class="password-toggle" data-target="login-password" aria-label="Show password" aria-pressed="false">
+                <i class='bx bx-show'></i>
+              </button>
+            </div>
+          </div>
+        <p style="text-align:right;">
+          <a href="#" id="forgotPasswordLink" style="font-size: 0.88rem; color: var(--text-secondary);">Forgot Password?</a>
+        </p>
+          <div id="errorMsg" class="form-error" style="display: none"></div>
+          <button
+            type="submit"
+            class="btn btn-accent btn-block btn-lg"
+            id="loginBtn"
+          >
+            Sign In
+          </button>
+        </form>
+        <p class="auth-switch">
+          Don't have an account?
+          <a href="/teacher-register">Register here</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Forgot Password: Step 1 - Enter Email -->
+    <div id="fpEmailModal" class="modal-overlay">
+      <div class="modal-card">
+        <h2><i class='bx bx-lock-open-alt' style="color: var(--accent-primary); vertical-align: middle;"></i> Forgot Password</h2>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1rem;">Enter your registered email address.</p>
+        <div class="form-group">
+          <input type="email" id="fp-email" placeholder="Enter your email" style="width:100%;" />
+        </div>
+        <div id="fpEmailError" class="form-error" style="display: none;"></div>
+        <div class="modal-actions">
+          <button id="fpEmailCancel" class="btn" style="color: azure; background: var(--bg-glass); border: 1px solid var(--border-color);">Cancel</button>
+          <button id="fpEmailSubmit" class="btn btn-accent">Enter 2FA Code</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forgot Password: Step 2 - Enter 2FA Code -->
+    <div id="fpCodeModal" class="modal-overlay">
+      <div class="modal-card">
+        <h2><i class='bx bx-shield-quarter' style="color: var(--accent-primary); vertical-align: middle;"></i> Enter Recovery Code</h2>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">Type any one of the 8 recovery codes you saved during registration.</p>
+        <p style="color: var(--accent-amber); font-size: 0.78rem; margin-bottom: 1rem;"><i class='bx bx-info-circle'></i> If you have not saved your codes, please contact the admin for changing the password.</p>
+        <div class="form-group">
+          <input type="text" id="fp-code" placeholder="e.g. A1B2C3D4" style="width:100%; font-family: monospace; text-transform: uppercase; letter-spacing: 2px;" />
+        </div>
+        <div id="fpCodeError" class="form-error" style="display: none;"></div>
+        <div class="modal-actions">
+          <button id="fpCodeCancel" class="btn" style=" color: azure; background: var(--bg-glass); border: 1px solid var(--border-color);">Cancel</button>
+          <button id="fpCodeSubmit" class="btn btn-accent">Verify Code</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forgot Password: Step 3 - New Password -->
+    <div id="fpResetModal" class="modal-overlay">
+      <div class="modal-card">
+        <h2><i class='bx bx-key' style="color: var(--accent-green); vertical-align: middle;"></i> Set New Password</h2>
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+          <label style="font-size:0.85rem; color: var(--text-secondary);">New Password</label>
+          <div class="password-input">
+            <input type="password" id="fp-new-password" placeholder="Minimum 6 characters" minlength="6" style="width:100%;" />
+            <button type="button" class="password-toggle" data-target="fp-new-password" aria-label="Show password" aria-pressed="false">
+              <i class='bx bx-show'></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:0.85rem; color: var(--text-secondary);">Confirm Password</label>
+          <div class="password-input">
+            <input type="password" id="fp-confirm-password" placeholder="Re-enter password" minlength="6" style="width:100%;" />
+            <button type="button" class="password-toggle" data-target="fp-confirm-password" aria-label="Show password" aria-pressed="false">
+              <i class='bx bx-show'></i>
+            </button>
+          </div>
+        </div>
+        <div id="fpResetError" class="form-error" style="display: none;"></div>
+        <div class="modal-actions">
+          <button id="fpResetCancel" class="btn" style="color: azure; background: var(--bg-glass); border: 1px solid var(--border-color);">Cancel</button>
+          <button id="fpResetSubmit" class="btn btn-accent">Reset Password</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      function setupPasswordToggles() {
+        document.querySelectorAll(".password-toggle").forEach((toggle) => {
+          toggle.addEventListener("click", () => {
+            const input = document.getElementById(toggle.dataset.target);
+            const icon = toggle.querySelector("i");
+            const isHidden = input.type === "password";
+
+            input.type = isHidden ? "text" : "password";
+            toggle.setAttribute("aria-pressed", String(isHidden));
+            toggle.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+            icon.className = isHidden ? "bx bx-hide" : "bx bx-show";
+          });
+        });
+      }
+
+      setupPasswordToggles();
+
+      document
+        .getElementById("teacherLoginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("loginBtn");
+          const errorMsg = document.getElementById("errorMsg");
+          errorMsg.style.display = "none";
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const result = await ApiService.loginTeacher({
+              email: document.getElementById("login-email").value.trim(),
+              password: document.getElementById("login-password").value,
+            });
+
+            ApiService.setAuth(result.token, result.user);
+            window.location.href = "/teacher-dashboard";
+          } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.style.display = "block";
+            btn.disabled = false;
+            btn.textContent = "Sign In";
+          }
+        });
+
+      // ─── Forgot Password Flow ───
+      let fpEmail = "";
+      let fpResetToken = "";
+
+      function closeAllFpModals() {
+        document.getElementById("fpEmailModal").classList.remove("show");
+        document.getElementById("fpCodeModal").classList.remove("show");
+        document.getElementById("fpResetModal").classList.remove("show");
+      }
+
+      // Step 1: Open email modal
+      document.getElementById("forgotPasswordLink").addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("fp-email").value = document.getElementById("login-email").value || "";
+        document.getElementById("fpEmailError").style.display = "none";
+        document.getElementById("fpEmailModal").classList.add("show");
+      });
+
+      document.getElementById("fpEmailCancel").addEventListener("click", closeAllFpModals);
+
+      // Step 1 -> Step 2: Verify email then show code input
+      document.getElementById("fpEmailSubmit").addEventListener("click", async () => {
+        const email = document.getElementById("fp-email").value.trim();
+        const errEl = document.getElementById("fpEmailError");
+        errEl.style.display = "none";
+
+        if (!email) {
+          errEl.textContent = "Please enter your email.";
+          errEl.style.display = "block";
+          return;
+        }
+
+        try {
+          await ApiService.forgotPasswordVerifyEmail(email);
+          fpEmail = email;
+          closeAllFpModals();
+          document.getElementById("fp-code").value = "";
+          document.getElementById("fpCodeError").style.display = "none";
+          document.getElementById("fpCodeModal").classList.add("show");
+        } catch (error) {
+          errEl.textContent = error.message;
+          errEl.style.display = "block";
+        }
+      });
+
+      document.getElementById("fpCodeCancel").addEventListener("click", closeAllFpModals);
+
+      // Step 2 -> Step 3: Verify code then show password reset
+      document.getElementById("fpCodeSubmit").addEventListener("click", async () => {
+        const code = document.getElementById("fp-code").value.trim();
+        const errEl = document.getElementById("fpCodeError");
+        errEl.style.display = "none";
+
+        if (!code) {
+          errEl.textContent = "Please enter a recovery code.";
+          errEl.style.display = "block";
+          return;
+        }
+
+        try {
+          const result = await ApiService.forgotPasswordVerifyCode(fpEmail, code);
+          fpResetToken = result.resetToken;
+          closeAllFpModals();
+          document.getElementById("fp-new-password").value = "";
+          document.getElementById("fp-confirm-password").value = "";
+          document.getElementById("fpResetError").style.display = "none";
+          document.getElementById("fpResetModal").classList.add("show");
+          setupPasswordToggles();
+        } catch (error) {
+          errEl.textContent = error.message;
+          errEl.style.display = "block";
+        }
+      });
+
+      document.getElementById("fpResetCancel").addEventListener("click", closeAllFpModals);
+
+      // Step 3: Reset password
+      document.getElementById("fpResetSubmit").addEventListener("click", async () => {
+        const newPassword = document.getElementById("fp-new-password").value;
+        const confirmPassword = document.getElementById("fp-confirm-password").value;
+        const errEl = document.getElementById("fpResetError");
+        errEl.style.display = "none";
+
+        if (!newPassword || newPassword.length < 6) {
+          errEl.textContent = "Password must be at least 6 characters.";
+          errEl.style.display = "block";
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          errEl.textContent = "Passwords do not match.";
+          errEl.style.display = "block";
+          return;
+        }
+
+        try {
+          await ApiService.forgotPasswordReset(fpResetToken, newPassword);
+          closeAllFpModals();
+          const successMsg = document.getElementById("errorMsg");
+          successMsg.textContent = "Password reset successfully! You can now sign in.";
+          successMsg.style.display = "block";
+          successMsg.style.color = "#10b981";
+        } catch (error) {
+          errEl.textContent = error.message;
+          errEl.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>

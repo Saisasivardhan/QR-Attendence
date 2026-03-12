@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body class="student-page">
+    <!-- Main Content -->
+    <div class="dashboard">
+      <div class="page-header">
+        <h1>
+          <span class="header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3h18v18H3z" />
+              <path d="M3 9h18" />
+              <path d="M9 3v18" />
+            </svg>
+          </span>
+          My Attendance
+        </h1>
+        <p>Select a subject code to view your attendance records</p>
+      </div>
+
+      <div class="content-card">
+        <form id="attendanceQueryForm" class="inline-form">
+          <div class="form-group">
+            <label for="att-subject">Subject Code</label>
+            <select id="att-subject" required>
+              <option value="">Select Subject</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" id="viewAttBtn">
+            View Attendance
+          </button>
+        </form>
+
+        <div id="attendanceResult"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="bottom-tabs">
+      <a href="/student-dashboard" class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span class="tab-label">Scan</span>
+      </a>
+      <a href="/student-attendance" class="tab-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3h18v18H3z" />
+          <path d="M3 9h18" />
+          <path d="M9 3v18" />
+        </svg>
+        <span class="tab-label">Attendance</span>
+      </a>
+      <a href="/student-profile" class="tab-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 21v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1"/>
+        </svg>
+        <span class="tab-label">Profile</span>
+      </a>
+      <button class="tab-item" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span class="tab-label">Logout</span>
+      </button>
+    </nav>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "student"
+      ) {
+        window.location.href = "/student-login";
+      }
+
+      // ─── Populate Subject Dropdown ───
+      (function () {
+        const subjectSelect = document.getElementById("att-subject");
+        const user = ApiService.getUser();
+        if (user && user.subjectCodes) {
+          user.subjectCodes.forEach((code) => {
+            const opt = document.createElement("option");
+            opt.value = code;
+            opt.textContent = code;
+            subjectSelect.appendChild(opt);
+          });
+        }
+      })();
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Attendance Query ───
+      document
+        .getElementById("attendanceQueryForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("viewAttBtn");
+          const resultDiv = document.getElementById("attendanceResult");
+          const subjectCode = document
+            .getElementById("att-subject")
+            .value.trim()
+            .toUpperCase();
+
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            const result = await ApiService.getStudentAttendance(subjectCode);
+            const att = result.attendance;
+
+            // Calculate SVG circle progress
+            const percentage = att.percentage;
+            const circumference = 2 * Math.PI * 54;
+            const offset = circumference - (percentage / 100) * circumference;
+            const color =
+              percentage >= 80
+                ? "#10b981"
+                : percentage >= 40
+                  ? "#f59e0b"
+                  : "#ef4444";
+
+            // Build summary circle
+            let html =
+              '<div class="attendance-stats fade-in">' +
+              '<div class="stat-circle-container">' +
+              '<svg class="stat-circle" viewBox="0 0 120 120">' +
+              '<circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>' +
+              '<circle cx="60" cy="60" r="54" fill="none" stroke="' + color + '" stroke-width="8" ' +
+              'stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '" ' +
+              'stroke-linecap="round" transform="rotate(-90 60 60)"/>' +
+              '</svg>' +
+              '<div class="stat-circle-value">' +
+              '<span class="stat-percent" style="color:' + color + '">' + percentage + '%</span>' +
+              '<span class="stat-label">Attendance</span>' +
+              '</div></div>' +
+              '<div class="stat-info">' +
+              '<h3>' + att.subjectCode + '</h3>' +
+              '<div class="stat-row">' +
+              '<div class="stat-item"><span class="stat-num">' + att.totalClasses + '</span><span class="stat-desc">Total Classes</span></div>' +
+              '<div class="stat-item"><span class="stat-num">' + att.classesAttended + '</span><span class="stat-desc">Attended</span></div>' +
+              '</div></div></div>';
+
+            // Build date-wise records table with pagination
+            if (att.records && att.records.length > 0) {
+              html += '<div class="table-container fade-in" style="margin-top:1.5rem">' +
+                '<table class="data-table">' +
+                '<thead><tr>' +
+                '<th>#</th>' +
+                '<th>Date</th>' +
+                '<th>Day</th>' +
+                '<th>Time</th>' +
+                '<th>Status</th>' +
+                '</tr></thead>' +
+                '<tbody id="attTableBody"></tbody>' +
+                '</table></div>' +
+                '<div class="pagination" id="attPagination"></div>';
+            } else {
+              html += '<div class="empty-state" style="margin-top:1.5rem"><p>No class records found for this subject.</p></div>';
+            }
+
+            resultDiv.innerHTML = html;
+
+            // ─── Pagination Logic ───
+            if (att.records && att.records.length > 0) {
+              const ROWS_PER_PAGE = 10;
+              const records = att.records.slice().sort(function (a, b) {
+                return new Date(b.time || b.date) - new Date(a.time || a.date);
+              });
+              const totalPages = Math.ceil(records.length / ROWS_PER_PAGE);
+              let currentPage = 1;
+
+              function renderPage(page) {
+                currentPage = page;
+                const tbody = document.getElementById('attTableBody');
+                const start = (page - 1) * ROWS_PER_PAGE;
+                const end = Math.min(start + ROWS_PER_PAGE, records.length);
+                let rows = '';
+
+                for (let i = start; i < end; i++) {
+                  const rec = records[i];
+                  const d = new Date(rec.time || rec.date);
+                  const dateStr = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: '2-digit' });
+                  const dayStr = d.toLocaleDateString('en-IN', { weekday: 'short' });
+                  const timeStr = rec.time
+                    ? new Date(rec.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                    : '—';
+                  const badgeClass = rec.status === 'Present' ? 'stat-badge stat-good' : 'stat-badge stat-bad';
+
+                  rows += '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + dateStr + '</td>' +
+                    '<td>' + dayStr + '</td>' +
+                    '<td>' + timeStr + '</td>' +
+                    '<td><span class="' + badgeClass + '">' + rec.status + '</span></td>' +
+                    '</tr>';
+                }
+                tbody.innerHTML = rows;
+
+                // Render pagination controls
+                const pag = document.getElementById('attPagination');
+                if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+                let pagHtml = '<button class="pag-btn" id="pagPrev"' + (page <= 1 ? ' disabled' : '') + '>' +
+                  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>' +
+                  ' Prev</button>';
+
+                // Page numbers with ellipsis
+                var pages = [];
+                if (totalPages <= 7) {
+                  for (var i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (page > 3) pages.push('...');
+                  var rangeStart = Math.max(2, page - 1);
+                  var rangeEnd = Math.min(totalPages - 1, page + 1);
+                  if (page <= 3) rangeEnd = Math.max(rangeEnd, 4);
+                  if (page >= totalPages - 2) rangeStart = Math.min(rangeStart, totalPages - 3);
+                  for (var i = rangeStart; i <= rangeEnd; i++) pages.push(i);
+                  if (page < totalPages - 2) pages.push('...');
+                  pages.push(totalPages);
+                }
+
+                for (var pi = 0; pi < pages.length; pi++) {
+                  if (pages[pi] === '...') {
+                    pagHtml += '<span class="pag-ellipsis">&hellip;</span>';
+                  } else {
+                    pagHtml += '<button class="pag-btn' + (pages[pi] === page ? ' pag-active' : '') + '" data-page="' + pages[pi] + '">' + pages[pi] + '</button>';
+                  }
+                }
+
+                pagHtml += '<button class="pag-btn" id="pagNext"' + (page >= totalPages ? ' disabled' : '') + '>' +
+                  'Next <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+                  '</button>';
+
+                pag.innerHTML = pagHtml;
+
+                // Attach events
+                document.getElementById('pagPrev').addEventListener('click', function () { if (currentPage > 1) renderPage(currentPage - 1); });
+                document.getElementById('pagNext').addEventListener('click', function () { if (currentPage < totalPages) renderPage(currentPage + 1); });
+                pag.querySelectorAll('[data-page]').forEach(function (b) {
+                  b.addEventListener('click', function () { renderPage(parseInt(this.dataset.page)); });
+                });
+              }
+
+              renderPage(1);
+            }
+          } catch (error) {
+            resultDiv.innerHTML =
+              '<div class="empty-state"><p class="error-text">' +
+              error.message +
+              "</p></div>";
+          }
+
+          btn.disabled = false;
+          btn.textContent = "View Attendance";
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScanMark</title>
+    <link rel="icon" href="./assets/scanner.ico"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+      <div
+        class="nav-brand"
+        onclick="window.location.href = '/teacher-dashboard'"
+      >
+        <span class="nav-logo">⛶</span> ScanMark
+      </div>
+      <div class="nav-links">
+        <a class="nav-link active" href="/teacher-dashboard"
+          ><span class="nav-icon"><i class='bx bx-broadcast'></i></span> Session</a
+        >
+        <a class="nav-link" href="/teacher-analytics"
+          ><span class="nav-icon"><i class='bx bx-bar-chart-alt-2'></i></span> Analytics</a
+        >
+        <a class="nav-link" href="/teacher-manage-students-attendence"
+          ><span class="nav-icon"><i class='bx bx-group'></i></span> Manage Students Attendance</a
+        >
+        <a class="nav-link" href="/teacher-profile"
+          ><span class="nav-icon"><i class='bx bx-user'></i></span> Profile</a
+        >
+        <a class="nav-link nav-logout" id="logoutBtn"
+          ><span class="nav-icon"><i class='bx bx-power-off'></i></span> Logout</a
+        >
+      </div>
+      <button class="nav-hamburger" id="hamburgerBtn" aria-label="Toggle menu">
+        <i class='bx bx-menu'></i>
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard teacher-session-dashboard">
+      <div class="page-header">
+        <h1><i class='bx bx-broadcast'></i> Attendance Session</h1>
+        <p>Select a subject and start taking attendance via secure QR codes</p>
+      </div>
+
+      <div class="session-two-pane">
+        <!-- LHS: Controls -->
+        <div class="session-lhs">
+          <div class="content-card">
+            <h3 class="card-title"><i class='bx bx-cog'></i> Session Controls</h3>
+            <div class="session-controls-vertical">
+              <div class="form-group">
+                <label for="session-subject">Subject Code</label>
+                <select id="session-subject" required>
+                  <option value="">Select Subject</option>
+                </select>
+              </div>
+              <div class="session-actions-vertical">
+                <button class="btn btn-primary btn-lg btn-full" id="startSessionBtn">
+                  <span class="btn-icon"><i class='bx bx-play'></i></span> Start Attendance
+                </button>
+                <button
+                  class="btn btn-danger btn-lg btn-full"
+                  id="stopSessionBtn"
+                  style="display: none"
+                >
+                  <span class="btn-icon"><i class='bx bx-stop'></i></span> Stop Session
+                </button>
+              </div>
+            </div>
+            <div class="session-status-info" id="sessionStatusInfo">
+              <div class="status-idle">
+                <i class='bx bx-info-circle'></i>
+                <span>No active session</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RHS: QR Code -->
+        <div class="session-rhs">
+          <div id="qrDisplay" class="qr-display-fullpane">
+            <div class="qr-card-full">
+              <div class="qr-header">
+                <div class="qr-live-badge">
+                  <span class="pulse-dot active"></span> LIVE
+                </div>
+                <h2 id="qrSubjectLabel">—</h2>
+                <button class="btn-fullscreen" id="fullscreenBtn" title="Fullscreen">
+                  <i class='bx bx-fullscreen'></i>
+                </button>
+              </div>
+              <div class="qr-image-wrapper-full">
+                <img id="qrImage" class="qr-image-full" alt="QR Code for attendance" />
+              </div>
+              <p class="qr-hint">
+                QR refreshes every 2 seconds • Ask students to scan
+              </p>
+              <div class="qr-timer">
+                Session active: <span id="sessionDuration">0:00</span>
+              </div>
+            </div>
+          </div>
+          <div id="qrPlaceholder" class="qr-placeholder">
+            <i class='bx bx-qr'></i>
+            <p>QR code will appear here when a session is active</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fullscreen QR Overlay -->
+    <div id="qrFullscreenOverlay" class="qr-fullscreen-overlay">
+      <div class="qr-fs-top-bar">
+        <div class="qr-fs-info">
+          <div class="qr-live-badge"><span class="pulse-dot active"></span> LIVE</div>
+          <span class="qr-fs-subject" id="qrFsSubject">—</span>
+          <span class="qr-fs-timer">Session: <span id="qrFsDuration">0:00</span></span>
+        </div>
+        <button class="btn-fs-close" id="fullscreenCloseBtn" title="Exit fullscreen">
+          <i class='bx bx-x'></i>
+        </button>
+      </div>
+      <div class="qr-fs-body">
+        <div class="qr-fs-image-wrapper">
+          <img id="qrFsImage" class="qr-fs-image" alt="QR Code fullscreen" />
+        </div>
+      </div>
+      <p class="qr-fs-hint">QR refreshes every 2 seconds • Ask students to scan</p>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      // ─── Auth Guard ───
+      if (
+        !ApiService.isAuthenticated() ||
+        ApiService.getUser()?.role !== "teacher"
+      ) {
+        window.location.href = "/teacher-login";
+      }
+
+      // ─── Logout ───
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        stopSession();
+        ApiService.clearAuth();
+        window.location.href = "/";
+      });
+
+      // ─── Mobile Nav ───
+      document.getElementById("hamburgerBtn").addEventListener("click", () => {
+        document.querySelector(".nav-links").classList.toggle("nav-open");
+      });
+
+      // ─── Populate Subject Dropdown ───
+      const user = ApiService.getUser();
+      const subjectSelect = document.getElementById("session-subject");
+      if (user && user.subjectCodes) {
+        user.subjectCodes.forEach((code) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = code;
+          subjectSelect.appendChild(opt);
+        });
+      }
+
+      // ─── Session State ───
+      let qrRefreshInterval = null;
+      let sessionTimerInterval = null;
+      let sessionStartTime = null;
+      const fsOverlay = document.getElementById("qrFullscreenOverlay");
+
+      // ─── Toast Helper ───
+      function showToast(message, type) {
+        const existing = document.querySelector(".toast");
+        if (existing) existing.remove();
+        const toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.innerHTML =
+          '<div class="toast-content"><span class="toast-icon">' +
+          (type === "success" ? "✓" : "✕") +
+          '</span><span class="toast-message">' +
+          message +
+          "</span></div>";
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add("show"));
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      // ─── Start Session ───
+      document
+        .getElementById("startSessionBtn")
+        .addEventListener("click", async () => {
+          const subjectCode = subjectSelect.value;
+          if (!subjectCode) {
+            showToast("Please select a subject code.", "error");
+            return;
+          }
+
+          const btn = document.getElementById("startSessionBtn");
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span>';
+
+          try {
+            await ApiService.startAttendance(subjectCode);
+            showToast(
+              "Attendance session started for " + subjectCode + "!",
+              "success",
+            );
+
+            // Show QR display, hide placeholder
+            document.getElementById("qrDisplay").style.display = "flex";
+            document.getElementById("qrPlaceholder").style.display = "none";
+            document.getElementById("qrSubjectLabel").textContent = subjectCode;
+            document.getElementById("startSessionBtn").style.display = "none";
+            document.getElementById("stopSessionBtn").style.display =
+              "inline-flex";
+            document.getElementById("sessionStatusInfo").innerHTML =
+              '<div class="status-active"><i class="bx bx-broadcast bx-flashing"></i> <span>Session active — <strong>' + subjectCode + '</strong></span></div>';
+            subjectSelect.disabled = true;
+
+            // Start QR refresh (every 2 seconds)
+            refreshQR();
+            qrRefreshInterval = setInterval(refreshQR, 2000);
+
+            // Start session timer
+            sessionStartTime = Date.now();
+            sessionTimerInterval = setInterval(updateTimer, 1000);
+          } catch (error) {
+            showToast(error.message, "error");
+            btn.disabled = false;
+            btn.innerHTML = '<span class="btn-icon"><i class="bx bx-play"></i></span> Start Attendance';
+          }
+        });
+
+      // ─── Stop Session ───
+      document
+        .getElementById("stopSessionBtn")
+        .addEventListener("click", stopSession);
+
+      async function stopSession() {
+        try {
+          const result = await ApiService.stopAttendance();
+          const count = result.session ? result.session.attendanceCount : 0;
+          showToast(
+            "Session stopped. " + count + " students marked attendance.",
+            "success",
+          );
+        } catch (e) {
+          // Session might already be stopped
+        }
+
+        // Clear intervals
+        if (qrRefreshInterval) {
+          clearInterval(qrRefreshInterval);
+          qrRefreshInterval = null;
+        }
+        if (sessionTimerInterval) {
+          clearInterval(sessionTimerInterval);
+          sessionTimerInterval = null;
+        }
+
+        // Reset UI
+        document.getElementById("qrDisplay").style.display = "none";
+        document.getElementById("qrPlaceholder").style.display = "flex";
+        document.getElementById("startSessionBtn").style.display =
+          "inline-flex";
+        document.getElementById("startSessionBtn").disabled = false;
+        document.getElementById("startSessionBtn").innerHTML =
+          '<span class="btn-icon"><i class="bx bx-play"></i></span> Start Attendance';
+        document.getElementById("stopSessionBtn").style.display = "none";
+        document.getElementById("sessionStatusInfo").innerHTML =
+          '<div class="status-idle"><i class="bx bx-info-circle"></i> <span>No active session</span></div>';
+        subjectSelect.disabled = false;
+        // Close fullscreen if open
+        document.getElementById("qrFullscreenOverlay").classList.remove("active");
+      }
+
+      // ─── Refresh QR Image ───
+      async function refreshQR() {
+        try {
+          const result = await ApiService.getCurrentQR();
+          if (result.success) {
+            const img = document.getElementById("qrImage");
+            img.src = result.qr.image;
+            img.classList.add("qr-pulse");
+            setTimeout(() => img.classList.remove("qr-pulse"), 300);
+            // Sync fullscreen if open
+            if (fsOverlay.classList.contains("active")) {
+              document.getElementById("qrFsImage").src = result.qr.image;
+            }
+          }
+        } catch (error) {
+          if (error.message.includes("No active")) {
+            stopSession();
+          }
+        }
+      }
+
+      // ─── Update Timer ───
+      function updateTimer() {
+        if (!sessionStartTime) return;
+        const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const timeStr = mins + ":" + secs.toString().padStart(2, "0");
+        const el = document.getElementById("sessionDuration");
+        if (el) el.textContent = timeStr;
+        // Sync fullscreen timer
+        const fsEl = document.getElementById("qrFsDuration");
+        if (fsEl) fsEl.textContent = timeStr;
+      }
+
+      // ─── Check for Existing Active Session on Load ───
+      (async function checkActiveSession() {
+        try {
+          const result = await ApiService.getCurrentQR();
+          if (result.success) {
+            // Active session exists — show QR
+            document.getElementById("qrDisplay").style.display = "flex";
+            document.getElementById("qrPlaceholder").style.display = "none";
+            document.getElementById("qrSubjectLabel").textContent =
+              result.qr.subjectCode;
+            document.getElementById("qrImage").src = result.qr.image;
+            document.getElementById("startSessionBtn").style.display = "none";
+            document.getElementById("stopSessionBtn").style.display =
+              "inline-flex";
+            document.getElementById("sessionStatusInfo").innerHTML =
+              '<div class="status-active"><i class="bx bx-broadcast bx-flashing"></i> <span>Session active — <strong>' + result.qr.subjectCode + '</strong></span></div>';
+            subjectSelect.disabled = true;
+            subjectSelect.value = result.qr.subjectCode;
+
+            // Start refresh
+            qrRefreshInterval = setInterval(refreshQR, 2000);
+            sessionStartTime = Date.now();
+            sessionTimerInterval = setInterval(updateTimer, 1000);
+          }
+        } catch (e) {
+          // No active session — normal state
+        }
+      })();
+
+      // ─── Cleanup on page unload ───
+      window.addEventListener("beforeunload", () => {
+        if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+        if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      });
+
+      // ─── Fullscreen QR ───
+      document.getElementById("fullscreenBtn").addEventListener("click", () => {
+        fsOverlay.classList.add("active");
+        syncFullscreenQR();
+      });
+
+      document.getElementById("fullscreenCloseBtn").addEventListener("click", () => {
+        fsOverlay.classList.remove("active");
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && fsOverlay.classList.contains("active")) {
+          fsOverlay.classList.remove("active");
+        }
+      });
+
+      function syncFullscreenQR() {
+        const mainImg = document.getElementById("qrImage");
+        const fsImg = document.getElementById("qrFsImage");
+        if (mainImg.src) fsImg.src = mainImg.src;
+        document.getElementById("qrFsSubject").textContent =
+          document.getElementById("qrSubjectLabel").textContent;
+        document.getElementById("qrFsDuration").textContent =
+          document.getElementById("sessionDuration").textContent;
+      }
+    </script>
+  </body>
+</html>
