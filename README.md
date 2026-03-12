@@ -276,24 +276,6 @@ Integrate with Power Automate, Google Sheets, custom dashboards, or any tool tha
 
 ---
 
-## Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/your-repo/scanmark.git
-cd scanmark
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your MongoDB URI and JWT secret
-
-# Start the server
-npm run dev
-```
-
 The app will be running at `http://localhost:3000`
 
 ---
